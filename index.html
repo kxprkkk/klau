@@ -1,0 +1,3184 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <title>BUDGET v2.0 — Planer Finansowy</title>
+
+  <!-- PWA Meta Tags -->
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="BUDGET" />
+  <meta name="theme-color" content="#fff8fb" />
+  <link id="apple-touch-icon-link" rel="apple-touch-icon" href="" />
+  <link id="manifest-link" rel="manifest" href="" />
+
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- SheetJS (Obsługa Excela .XLSX oraz .CSV) -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <!-- Google Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Plus Jakarta Sans', '-apple-system', 'BlinkMacSystemFont', 'sans-serif'],
+            display: ['Quicksand', 'sans-serif'],
+          },
+          colors: {
+            bloom: {
+              50: '#fff5f9',
+              100: '#fce7f3',
+              200: '#fbcfe8',
+              300: '#f9a8d4',
+              400: '#f472b6',
+              500: '#ec4899',
+              600: '#db2777',
+              700: '#be185d',
+              800: '#9d174d',
+              900: '#831843',
+              950: '#4a0823',
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    :root {
+      --safe-bottom: env(safe-area-inset-bottom, 0px);
+      --safe-top: env(safe-area-inset-top, 0px);
+    }
+    body {
+      background-color: #fff9fc;
+      background-image:
+        radial-gradient(at 10% 8%, rgba(251, 207, 232, 0.55) 0px, transparent 46%),
+        radial-gradient(at 90% 12%, rgba(244, 114, 182, 0.25) 0px, transparent 42%),
+        radial-gradient(at 50% 92%, rgba(252, 231, 243, 0.65) 0px, transparent 55%);
+      background-attachment: fixed;
+      min-height: 100vh;
+      color: #3b0a24;
+      padding-top: var(--safe-top);
+      padding-bottom: calc(5.2rem + var(--safe-bottom));
+      -webkit-tap-highlight-color: transparent;
+      font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+    }
+    .num-tab {
+      font-variant-numeric: tabular-nums;
+    }
+    /* Subtelny SaaS Glassmorphism (identyczny jak we wzorze) */
+    .glass-panel {
+      background: rgba(255, 255, 255, 0.78);
+      backdrop-filter: blur(20px) saturate(180%);
+      -webkit-backdrop-filter: blur(20px) saturate(180%);
+      border: 1px solid rgba(255, 255, 255, 0.9);
+      box-shadow:
+        0 10px 30px -10px rgba(157, 23, 77, 0.06),
+        0 0 0 1px rgba(236, 72, 153, 0.14);
+    }
+    .glass-header {
+      background: rgba(255, 255, 255, 0.85);
+      backdrop-filter: blur(24px) saturate(190%);
+      -webkit-backdrop-filter: blur(24px) saturate(190%);
+      border-bottom: 1px solid rgba(236, 72, 153, 0.18);
+      box-shadow: 0 4px 20px -4px rgba(157, 23, 77, 0.04);
+    }
+    .glass-subtle {
+      background: rgba(255, 255, 255, 0.62);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(236, 72, 153, 0.20);
+    }
+    .pink-gradient {
+      background: linear-gradient(135deg, #be185d 0%, #db2777 50%, #ec4899 100%);
+    }
+    .pink-soft-gradient {
+      background: linear-gradient(135deg, rgba(253, 242, 248, 0.92) 0%, rgba(252, 231, 243, 0.88) 100%);
+    }
+    .tab-active {
+      background: linear-gradient(135deg, #be185d 0%, #db2777 100%);
+      color: white !important;
+      box-shadow: 0 4px 12px rgba(190, 24, 93, 0.25);
+    }
+    .seg-active {
+      background: white;
+      color: #9d174d;
+      box-shadow: 0 2px 6px rgba(157, 23, 77, 0.10), 0 0 0 1px rgba(236, 72, 153, 0.25);
+    }
+    input:focus, select:focus, textarea:focus {
+      outline: none;
+      border-color: #db2777;
+      box-shadow: 0 0 0 3px rgba(219, 39, 119, 0.14);
+    }
+    /* Przełącznik widoku Telefon / Tablet */
+    body.force-phone main,
+    body.force-phone .top-bar-inner {
+      max-width: 440px !important;
+      margin-left: auto;
+      margin-right: auto;
+    }
+    body.force-phone .desktop-table-view { display: none !important; }
+    body.force-phone .mobile-cards-view { display: block !important; }
+    body.force-phone #tablet-nav { display: none !important; }
+    body.force-phone #phone-bottom-nav { display: grid !important; }
+    body.force-phone .kpi-grid { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+    body.force-phone .dash-main-grid { grid-template-columns: 1fr !important; }
+    body.force-phone .accounts-grid { grid-template-columns: 1fr !important; }
+
+    body.force-tablet .desktop-table-view { display: block !important; }
+    body.force-tablet .mobile-cards-view { display: none !important; }
+    body.force-tablet #tablet-nav { display: flex !important; }
+    body.force-tablet #phone-bottom-nav { display: none !important; }
+
+    /* Tryb Auto */
+    @media (max-width: 767px) {
+      body.force-auto .desktop-table-view { display: none !important; }
+      body.force-auto .mobile-cards-view { display: block !important; }
+      body.force-auto #tablet-nav { display: none !important; }
+      body.force-auto #phone-bottom-nav { display: grid !important; }
+    }
+    @media (min-width: 768px) {
+      body.force-auto .desktop-table-view { display: block !important; }
+      body.force-auto .mobile-cards-view { display: none !important; }
+      body.force-auto #tablet-nav { display: flex !important; }
+      body.force-auto #phone-bottom-nav { display: none !important; }
+    }
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #f9a8d4; border-radius: 9999px; }
+  </style>
+</head>
+<body class="force-auto">
+
+  <!-- ==================== GÓRNY PASEK (HEADER) ==================== -->
+  <header class="sticky top-0 z-30 glass-header">
+    <div class="top-bar-inner max-w-7xl mx-auto px-3 sm:px-6 py-2.5 space-y-2.5">
+
+      <!-- Wiersz 1: Brand + Przełącznik Widoku (Auto / Telefon / Tablet) + Ukryj salda + Szybkie akcje -->
+      <div class="flex flex-wrap items-center justify-between gap-2">
+        <div class="flex items-center gap-2.5">
+          <div class="w-9 h-9 rounded-xl pink-gradient flex items-center justify-center text-white shadow-sm shrink-0">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M21 12V7a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-5z"/>
+              <path stroke-linecap="round" stroke-linejoin="round" d="M16 12h5"/>
+              <circle cx="16" cy="12" r="1"/>
+            </svg>
+          </div>
+          <div>
+            <div class="flex items-center gap-2">
+              <h1 class="font-display font-bold text-base sm:text-lg tracking-tight text-bloom-950">BUDGET</h1>
+              <span class="text-[10px] font-bold px-2 py-0.5 rounded-md bg-bloom-100/90 text-bloom-800 border border-bloom-300/60 num-tab">v2.0</span>
+              <span id="net-status-badge" class="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-md bg-emerald-100/80 text-emerald-800">
+                <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> Online
+              </span>
+            </div>
+            <p class="text-[11px] text-bloom-700/80 font-medium">Planer Finansowy</p>
+          </div>
+        </div>
+
+        <div class="flex items-center gap-1.5 sm:gap-2">
+          <!-- Przełącznik Auto / Telefon / Tablet -->
+          <div class="bg-bloom-100/60 p-1 rounded-xl flex items-center text-[11px] font-semibold border border-bloom-200/70">
+            <button onclick="setDeviceMode('auto')" id="dev-auto" class="px-2 py-1 rounded-lg transition">Auto</button>
+            <button onclick="setDeviceMode('phone')" id="dev-phone" class="px-2 py-1 rounded-lg transition flex items-center gap-1">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="6" y="2" width="12" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
+              <span class="hidden sm:inline">Telefon</span>
+            </button>
+            <button onclick="setDeviceMode('tablet')" id="dev-tablet" class="px-2 py-1 rounded-lg transition flex items-center gap-1">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
+              <span class="hidden sm:inline">Tablet</span>
+            </button>
+          </div>
+
+          <!-- Ukrywanie sald (Oczko) -->
+          <button onclick="togglePrivacyMode()" id="privacy-btn" title="Ukryj lub pokaż salda" class="glass-subtle hover:bg-white text-bloom-900 p-2 rounded-xl shadow-sm transition flex items-center justify-center">
+            <svg id="privacy-icon-open" class="w-4 h-4 text-bloom-700" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
+            </svg>
+            <svg id="privacy-icon-closed" class="w-4 h-4 text-bloom-700 hidden" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/>
+            </svg>
+          </button>
+
+          <!-- Szybka aktualizacja salda -->
+          <button onclick="openBalanceUpdateModal()" class="pink-gradient hover:opacity-95 text-white text-xs font-semibold px-3 py-2 rounded-xl shadow-sm flex items-center gap-1.5 transition">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.4" viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+            <span>Saldo</span>
+          </button>
+
+          <!-- Szybkie dodanie do planera -->
+          <button onclick="openPlannerModal()" class="glass-subtle hover:bg-white text-bloom-900 text-xs font-semibold px-3 py-2 rounded-xl shadow-sm flex items-center gap-1.5 transition">
+            <svg class="w-3.5 h-3.5 text-bloom-700" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            <span>Planer</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Wiersz 2: Wybór Miesiąca + Status Świeżości Sald + Nawigacja Tablet/Desktop -->
+      <div class="flex flex-wrap items-center justify-between gap-2 pt-1.5 border-t border-bloom-200/40">
+        <div class="flex flex-wrap items-center gap-2">
+          <div id="month-picker-wrap" class="flex items-center gap-1 bg-white/85 px-2.5 py-1 rounded-xl border border-bloom-200/80 shadow-sm">
+            <button onclick="shiftSelectedMonth(-1)" class="text-bloom-600 hover:text-bloom-950 p-0.5 rounded" title="Poprzedni miesiąc">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
+            </button>
+            <input type="month" id="globalMonth" class="text-xs font-bold text-bloom-950 bg-transparent cursor-pointer num-tab" />
+            <button onclick="shiftSelectedMonth(1)" class="text-bloom-600 hover:text-bloom-950 p-0.5 rounded" title="Następny miesiąc">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>
+            </button>
+          </div>
+
+          <button onclick="jumpToCurrentMonth()" class="bg-bloom-100/70 hover:bg-bloom-200/80 text-bloom-900 text-[11px] font-semibold px-2.5 py-1 rounded-xl border border-bloom-200/60 transition">
+            Bieżący
+          </button>
+
+          <!-- Pigułka informująca o świeżości danych na kontach -->
+          <button onclick="switchTab('konta')" id="header-freshness-pill" class="text-[11px] font-semibold px-2.5 py-1 rounded-xl border transition flex items-center gap-1.5"></button>
+        </div>
+
+        <!-- Nawigacja dla Tabletu / Desktopu (4 dokładne zakładki) -->
+        <nav id="tablet-nav" class="flex gap-1.5 overflow-x-auto">
+          <button onclick="switchTab('dashboard')" id="tab-btn-dashboard" class="tab-active px-3.5 py-1.5 rounded-xl text-xs font-semibold transition whitespace-nowrap flex items-center gap-1.5">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg>
+            <span>Dashboard</span>
+          </button>
+          <button onclick="switchTab('konta')" id="tab-btn-konta" class="glass-subtle hover:bg-white text-bloom-900 px-3.5 py-1.5 rounded-xl text-xs font-semibold transition whitespace-nowrap flex items-center gap-1.5">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
+            <span>Konta</span>
+            <span id="badge-konta" class="text-[10px] px-1.5 py-0.2 rounded-full bg-bloom-100 text-bloom-800 num-tab font-bold">0</span>
+          </button>
+          <button onclick="switchTab('planer')" id="tab-btn-planer" class="glass-subtle hover:bg-white text-bloom-900 px-3.5 py-1.5 rounded-xl text-xs font-semibold transition whitespace-nowrap flex items-center gap-1.5">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+            <span>Planer</span>
+            <span id="badge-planer" class="text-[10px] px-1.5 py-0.2 rounded-full bg-bloom-100 text-bloom-800 num-tab font-bold">0</span>
+          </button>
+          <button onclick="switchTab('ustawienia')" id="tab-btn-ustawienia" class="glass-subtle hover:bg-white text-bloom-900 px-3.5 py-1.5 rounded-xl text-xs font-semibold transition whitespace-nowrap flex items-center gap-1.5">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+            <span>Ustawienia</span>
+          </button>
+        </nav>
+      </div>
+
+    </div>
+  </header>
+
+  <!-- ==================== GŁÓWNA ZAWARTOŚĆ ==================== -->
+  <main class="max-w-7xl mx-auto px-3 sm:px-6 mt-5">
+
+    <!-- ==================== ZAKŁADKA 1: DASHBOARD ==================== -->
+    <section id="tab-dashboard" class="space-y-5">
+
+      <!-- 4 Główne Kafelki KPI (w układzie identycznym jak we wzorze) -->
+      <div class="kpi-grid grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+        <!-- KPI 1: Łączne Oszczędności i Konta -->
+        <div class="glass-panel rounded-2xl p-4 relative overflow-hidden">
+          <div class="flex items-center justify-between">
+            <p class="text-[11px] font-bold uppercase tracking-wider text-bloom-700/80">Łączne Środki</p>
+            <div class="w-7 h-7 rounded-lg bg-bloom-100/80 text-bloom-700 flex items-center justify-center">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
+            </div>
+          </div>
+          <h2 id="kpi-total-wealth" class="text-xl sm:text-2xl font-display font-bold text-bloom-950 mt-1.5 num-tab">0,00 zł</h2>
+          <div class="mt-2.5 pt-2 border-t border-bloom-200/40 flex flex-wrap justify-between text-[11px] text-bloom-700 gap-1 num-tab">
+            <span id="kpi-savings-sub">Oszcz.: 0 zł</span>
+            <span id="kpi-daily-sub" class="font-semibold">Bieżące: 0 zł</span>
+          </div>
+        </div>
+
+        <!-- KPI 2: Pozostały Budżet na Przyjemności (Wyróżniony) -->
+        <div class="glass-panel rounded-2xl p-4 relative overflow-hidden ring-1 ring-bloom-400/60">
+          <div class="flex items-center justify-between">
+            <p class="text-[11px] font-bold uppercase tracking-wider text-bloom-800">Budżet na Przyjemności</p>
+            <div class="w-7 h-7 rounded-lg pink-gradient text-white flex items-center justify-center shadow-sm">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+            </div>
+          </div>
+          <h2 id="kpi-pleasure-left" class="text-xl sm:text-2xl font-display font-bold text-emerald-600 mt-1.5 num-tab">0,00 zł</h2>
+          <div class="mt-2.5 pt-2 border-t border-bloom-200/40 flex flex-wrap justify-between text-[11px] text-bloom-700 gap-1 num-tab">
+            <span id="kpi-pleasure-limit">Limit: 0 zł</span>
+            <span id="kpi-pleasure-used" class="font-bold text-bloom-900">Wydano: 0 zł</span>
+          </div>
+        </div>
+
+        <!-- KPI 3: Planer Miesiąca (Wydatki + Raty + Długi) -->
+        <div class="glass-panel rounded-2xl p-4 relative overflow-hidden">
+          <div class="flex items-center justify-between">
+            <p class="text-[11px] font-bold uppercase tracking-wider text-bloom-700/80">Planer Miesiąca</p>
+            <div class="w-7 h-7 rounded-lg bg-rose-100/80 text-rose-700 flex items-center justify-center">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
+            </div>
+          </div>
+          <h2 id="kpi-planned-total" class="text-xl sm:text-2xl font-display font-bold text-rose-600 mt-1.5 num-tab">0,00 zł</h2>
+          <div class="mt-2.5 pt-2 border-t border-bloom-200/40 flex flex-wrap justify-between text-[11px] text-bloom-700 gap-1 num-tab">
+            <span id="kpi-planned-paid">Opłacono: 0 zł</span>
+            <span id="kpi-planned-left" class="font-semibold">Zostało: 0 zł</span>
+          </div>
+        </div>
+
+        <!-- KPI 4: Ostatnia Różnica Sald (Delta) -->
+        <div class="glass-panel rounded-2xl p-4 relative overflow-hidden">
+          <div class="flex items-center justify-between">
+            <p class="text-[11px] font-bold uppercase tracking-wider text-bloom-700/80">Bilans Zmian Sald</p>
+            <div class="w-7 h-7 rounded-lg bg-purple-100/80 text-purple-700 flex items-center justify-center">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
+            </div>
+          </div>
+          <h2 id="kpi-delta-sum" class="text-xl sm:text-2xl font-display font-bold text-bloom-950 mt-1.5 num-tab">0,00 zł</h2>
+          <div class="mt-2.5 pt-2 border-t border-bloom-200/40 flex flex-wrap justify-between text-[11px] text-bloom-700 gap-1 num-tab">
+            <span id="kpi-freshness-sub">Świeżość: dzisiaj</span>
+            <span id="kpi-goals-sub" class="font-semibold">Cele: 0%</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Układ główny Dashboardu (12 kolumn jak we wzorze) -->
+      <div class="dash-main-grid grid grid-cols-1 lg:grid-cols-12 gap-5">
+
+        <!-- Lewa kolumna: Tabela Zestawienia Finansowego -->
+        <div class="lg:col-span-7 space-y-5">
+          <div class="glass-panel rounded-2xl p-5">
+            <div class="flex flex-wrap items-center justify-between gap-2 mb-4">
+              <div>
+                <h3 class="font-display font-bold text-base sm:text-lg text-bloom-950">
+                  Zestawienie Finansowe (<span id="table-period-label">Październik 2026</span>)
+                </h3>
+                <p class="text-xs text-bloom-600">Podsumowanie sald kont, budżetu na przyjemności oraz zaplanowanych wydatków</p>
+              </div>
+              <button onclick="switchTab('planer')" class="text-xs font-semibold text-bloom-800 bg-white/80 hover:bg-white px-3 py-1.5 rounded-xl border border-bloom-200/80 shadow-sm transition">
+                Otwórz Planer →
+              </button>
+            </div>
+
+            <div class="overflow-x-auto">
+              <table class="w-full text-xs sm:text-sm text-left num-tab">
+                <thead>
+                  <tr class="border-b border-bloom-200/70 text-[11px] uppercase text-bloom-600 bg-bloom-50/60">
+                    <th class="py-2.5 px-3 rounded-tl-xl">Pozycja budżetowa</th>
+                    <th class="py-2.5 px-3 hidden sm:table-cell">Szczegóły wyliczenia</th>
+                    <th class="py-2.5 px-3 text-right rounded-tr-xl">Kwota</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-bloom-100/80">
+                  <tr>
+                    <td class="py-2.5 px-3 font-semibold text-bloom-950">Konta osobiste i gotówka</td>
+                    <td class="py-2.5 px-3 text-xs text-bloom-600 hidden sm:table-cell">Środki bieżące dostępne na co dzień</td>
+                    <td id="m-daily-funds" class="py-2.5 px-3 text-right font-bold text-bloom-950">0,00 zł</td>
+                  </tr>
+                  <tr>
+                    <td class="py-2.5 px-3 font-semibold text-emerald-700">Konta oszczędnościowe i waluty</td>
+                    <td class="py-2.5 px-3 text-xs text-bloom-600 hidden sm:table-cell">Odłożone oszczędności oraz subkonta walutowe</td>
+                    <td id="m-savings-funds" class="py-2.5 px-3 text-right font-bold text-emerald-700">0,00 zł</td>
+                  </tr>
+                  <tr class="bg-bloom-50/50">
+                    <td class="py-2.5 px-3 font-bold text-bloom-950">Miesięczny budżet na przyjemności</td>
+                    <td class="py-2.5 px-3 text-xs text-bloom-600 hidden sm:table-cell">Ustalony limit wydatków na wybrany miesiąc</td>
+                    <td id="m-pleasure-limit" class="py-2.5 px-3 text-right font-bold text-bloom-950">0,00 zł</td>
+                  </tr>
+                  <tr>
+                    <td class="py-2.5 px-3 font-semibold text-rose-700">Wykorzystano z puli przyjemności</td>
+                    <td class="py-2.5 px-3 text-xs text-bloom-600 hidden sm:table-cell" id="m-pleasure-breakdown">Chcę kupić + Prezenty + Raty 0% w tym msc</td>
+                    <td id="m-pleasure-used" class="py-2.5 px-3 text-right font-bold text-rose-600">0,00 zł</td>
+                  </tr>
+                  <tr id="m-pleasure-row" class="bg-emerald-50/70">
+                    <td class="py-3 px-3 font-extrabold text-emerald-900 text-sm sm:text-base">Pozostały budżet na przyjemności</td>
+                    <td class="py-3 px-3 text-xs text-emerald-700 font-medium hidden sm:table-cell">Bezpieczna pula do wydania w tym miesiącu</td>
+                    <td id="m-pleasure-remaining" class="py-3 px-3 text-right font-extrabold text-emerald-700 text-sm sm:text-base">0,00 zł</td>
+                  </tr>
+                  <tr>
+                    <td class="py-2.5 px-3 font-semibold text-amber-700">Zobowiązania i długi w miesiącu</td>
+                    <td class="py-2.5 px-3 text-xs text-bloom-600 hidden sm:table-cell" id="m-debts-desc">Pozycje typu „Dług / Zobowiązanie”</td>
+                    <td id="m-debts-total" class="py-2.5 px-3 text-right font-bold text-amber-700">0,00 zł</td>
+                  </tr>
+                  <tr>
+                    <td class="py-2.5 px-3 font-semibold text-bloom-950">Wishlista <span class="text-[11px] font-normal text-bloom-600">[poczekalnia]</span></td>
+                    <td class="py-2.5 px-3 text-xs text-bloom-600 hidden sm:table-cell" id="m-wishlist-desc">Produkty aktualnie rozważane</td>
+                    <td id="m-wishlist-total" class="py-2.5 px-3 text-right font-bold text-bloom-800">0,00 zł</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <!-- 2 Dolne Kafelki Podsumowujące pod tabelą -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 mt-4 pt-3 border-t border-bloom-100 text-xs num-tab">
+              <div class="bg-white/60 border border-bloom-200/50 rounded-xl p-3 flex items-center gap-2.5">
+                <div class="p-2 rounded-lg bg-bloom-100/70 text-bloom-700">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
+                </div>
+                <div>
+                  <p class="font-bold text-bloom-900">Transfery własne (neutralne)</p>
+                  <p id="dash-transfers-text" class="text-bloom-700 mt-0.5">Przelano między kontami: 0,00 zł</p>
+                </div>
+              </div>
+              <div class="bg-white/60 border border-bloom-200/50 rounded-xl p-3 flex items-center gap-2.5">
+                <div class="p-2 rounded-lg bg-emerald-100/70 text-emerald-700">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                </div>
+                <div>
+                  <p class="font-bold text-bloom-900">Zaoszczędzone na Wishliście</p>
+                  <p id="dash-saved-wishlist-text" class="text-emerald-700 font-semibold mt-0.5">Status „Odpuszczam”: 0,00 zł</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Prawa kolumna: Kontrola Budżetu na Przyjemności + Świeżość Sald Kont -->
+        <div class="lg:col-span-5 space-y-5">
+          <!-- Karta 1: Budżet na Przyjemności w wybranym miesiącu -->
+          <div class="glass-panel rounded-2xl p-5">
+            <div class="flex items-center justify-between mb-3">
+              <h3 class="font-display font-bold text-base sm:text-lg text-bloom-950 flex items-center gap-2">
+                <svg class="w-4 h-4 text-bloom-600" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>
+                <span>Pula na Przyjemności</span>
+              </h3>
+              <div class="flex items-center gap-1 bg-white/85 px-2.5 py-1 rounded-lg border border-bloom-200">
+                <span class="text-[11px] text-bloom-700">Limit msc:</span>
+                <input type="number" id="quickMonthlyBudgetInput" onchange="updateMonthlyBudgetFromDashboard(this.value)" class="w-16 text-xs font-bold text-bloom-950 bg-transparent text-right num-tab" step="50" />
+                <span class="text-[11px] font-bold text-bloom-700">zł</span>
+              </div>
+            </div>
+
+            <div class="flex justify-between text-xs font-semibold mb-1.5 num-tab">
+              <span id="pleasure-progress-label" class="text-bloom-700">Wykorzystano: 0 zł</span>
+              <span id="pleasure-percent-label" class="text-bloom-950 font-bold">0%</span>
+            </div>
+            <div class="w-full h-3 bg-bloom-100/80 rounded-full overflow-hidden p-0.5 border border-bloom-200/50">
+              <div id="pleasure-progress-bar" class="h-full pink-gradient rounded-full transition-all duration-500" style="width: 0%"></div>
+            </div>
+
+            <div class="mt-4 p-3.5 rounded-xl pink-soft-gradient border border-bloom-200/80 space-y-2.5">
+              <p id="pleasure-summary-text" class="text-xs font-semibold text-bloom-950 leading-relaxed"></p>
+              <div class="grid grid-cols-3 gap-2 pt-2 border-t border-bloom-200/70 text-center num-tab">
+                <div class="bg-white/90 rounded-xl p-2 shadow-sm">
+                  <p class="text-[10px] text-bloom-600 font-semibold">Chcę kupić</p>
+                  <p id="box-wants-sum" class="text-sm font-display font-bold text-bloom-950">0 zł</p>
+                  <p id="box-wants-count" class="text-[10px] text-bloom-500">0 poz.</p>
+                </div>
+                <div class="bg-white/90 rounded-xl p-2 shadow-sm">
+                  <p class="text-[10px] text-bloom-600 font-semibold">Prezenty</p>
+                  <p id="box-gifts-sum" class="text-sm font-display font-bold text-bloom-950">0 zł</p>
+                  <p id="box-gifts-count" class="text-[10px] text-bloom-500">0 poz.</p>
+                </div>
+                <div class="bg-white/90 rounded-xl p-2 shadow-sm">
+                  <p class="text-[10px] text-bloom-600 font-semibold">Raty 0% (msc)</p>
+                  <p id="box-inst-sum" class="text-sm font-display font-bold text-bloom-950">0 zł</p>
+                  <p id="box-inst-count" class="text-[10px] text-bloom-500">0 rat</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Karta 2: Status Aktualizacji Kont (Stopniowane przypomnienie) -->
+          <div class="glass-panel rounded-2xl p-5">
+            <div class="flex items-center justify-between mb-2.5">
+              <h3 class="font-display font-bold text-sm sm:text-base text-bloom-950 flex items-center gap-2">
+                <svg class="w-4 h-4 text-bloom-600" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                <span>Aktualność Sald Kont</span>
+              </h3>
+              <button onclick="openBalanceUpdateModal()" class="text-[11px] font-bold text-bloom-700 hover:text-bloom-950 underline">+ Zaktualizuj</button>
+            </div>
+            <div id="dash-freshness-list" class="space-y-2 num-tab"></div>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ==================== ZAKŁADKA 2: KONTA ==================== -->
+    <section id="tab-konta" class="hidden space-y-5">
+      <!-- Sekcja 1: Karty Kont -->
+      <div class="glass-panel rounded-2xl p-4 sm:p-6">
+        <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+          <div>
+            <h2 class="font-display font-bold text-lg sm:text-xl text-bloom-950">Konta, Oszczędności i Waluty</h2>
+            <p class="text-xs text-bloom-600">Aktualizuj stany kont, wykonuj neutralne przelewy własne i opisuj różnice sald</p>
+          </div>
+          <div class="flex flex-wrap gap-2">
+            <button onclick="openTransferModal()" class="bg-bloom-100/80 hover:bg-bloom-200 text-bloom-900 text-xs font-semibold px-3.5 py-2 rounded-xl transition flex items-center gap-1.5">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
+              <span>Transfer wewnętrzny</span>
+            </button>
+            <button onclick="openAccountModal()" class="pink-gradient text-white text-xs font-semibold px-3.5 py-2 rounded-xl shadow-sm flex items-center gap-1.5">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.4" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              <span>Dodaj konto</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Siatka Kart Kont -->
+        <div id="accounts-cards-grid" class="accounts-grid grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5 num-tab"></div>
+      </div>
+
+      <!-- Sekcja 2: Historia Aktualizacji i Wyjaśnienia Różnic (Delta) -->
+      <div class="glass-panel rounded-2xl p-4 sm:p-6">
+        <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+          <div>
+            <h3 class="font-display font-bold text-base sm:text-lg text-bloom-950">Historia Różnic Sald i Przelewów Własnych</h3>
+            <p class="text-xs text-bloom-600">Każda zmiana salda oraz jej powód (np. spłata rat, zakupy, wynagrodzenie, transfer wewnętrzny)</p>
+          </div>
+          <div class="flex items-center gap-2">
+            <select id="historyFilterAccount" onchange="renderAll()" class="text-xs px-3 py-2 rounded-xl border border-bloom-200 bg-white/90 font-semibold text-bloom-900">
+              <option value="ALL">Wszystkie konta</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Widok Tabeli (Tablet/Desktop) -->
+        <div class="desktop-table-view overflow-x-auto">
+          <table class="w-full text-xs sm:text-sm text-left num-tab">
+            <thead>
+              <tr class="bg-bloom-50/80 border-b border-bloom-200 text-[11px] uppercase text-bloom-700">
+                <th class="py-3 px-2.5 rounded-tl-xl">Data</th>
+                <th class="py-3 px-2.5">Konto</th>
+                <th class="py-3 px-2.5">Kategoria zmiany</th>
+                <th class="py-3 px-2.5 text-right">Poprzednie saldo</th>
+                <th class="py-3 px-2.5 text-right">Nowe saldo</th>
+                <th class="py-3 px-2.5 text-right">Różnica (Delta)</th>
+                <th class="py-3 px-2.5">Opis / Notatka</th>
+                <th class="py-3 px-2.5 text-right rounded-tr-xl">Akcja</th>
+              </tr>
+            </thead>
+            <tbody id="history-table-body" class="divide-y divide-bloom-100/80"></tbody>
+          </table>
+        </div>
+
+        <!-- Widok Kart (Telefon) -->
+        <div id="history-cards-body" class="mobile-cards-view space-y-2.5"></div>
+      </div>
+    </section>
+
+    <!-- ==================== ZAKŁADKA 3: PLANER ==================== -->
+    <section id="tab-planer" class="hidden space-y-5">
+      <div class="glass-panel rounded-2xl p-4 sm:p-6">
+        <!-- Pasek przełączania pod-widoków Planera (w stylu Segmented Control ze wzoru) -->
+        <div class="flex flex-wrap items-center justify-between gap-3 pb-4 border-b border-bloom-200/60">
+          <div class="bg-bloom-100/60 p-1 rounded-xl flex flex-wrap items-center text-xs font-semibold border border-bloom-200/70 gap-1">
+            <button onclick="setPlanerSubView('month')" id="psub-month" class="px-3 py-1.5 rounded-lg transition seg-active">
+              Plan Miesięczny
+            </button>
+            <button onclick="setPlanerSubView('wishlist')" id="psub-wishlist" class="px-3 py-1.5 rounded-lg transition text-bloom-800">
+              Wishlista
+            </button>
+            <button onclick="setPlanerSubView('installments')" id="psub-installments" class="px-3 py-1.5 rounded-lg transition text-bloom-800">
+              Raty 0%
+            </button>
+            <button onclick="setPlanerSubView('goals')" id="psub-goals" class="px-3 py-1.5 rounded-lg transition text-bloom-800">
+              Cele Oszczędnościowe
+            </button>
+          </div>
+
+          <!-- Przyciski akcji zależne od pod-widoku -->
+          <div class="flex flex-wrap gap-2">
+            <button onclick="openPlannerModal()" class="pink-gradient text-white text-xs font-semibold px-3.5 py-2 rounded-xl shadow-sm flex items-center gap-1">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.4" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              <span>Pozycja w miesiącu</span>
+            </button>
+            <button onclick="openWishlistModal()" class="glass-subtle hover:bg-white text-bloom-900 text-xs font-semibold px-3 py-2 rounded-xl shadow-sm">
+              + Wishlista
+            </button>
+            <button onclick="openInstallmentModal()" class="glass-subtle hover:bg-white text-bloom-900 text-xs font-semibold px-3 py-2 rounded-xl shadow-sm">
+              + Raty 0%
+            </button>
+            <button onclick="openGoalModal()" class="glass-subtle hover:bg-white text-bloom-900 text-xs font-semibold px-3 py-2 rounded-xl shadow-sm">
+              + Cel
+            </button>
+          </div>
+        </div>
+
+        <!-- POD-WIDOK 3A: PLAN MIESIĘCZNY (Chcę kupić, Prezenty, Długi + Raty 0% w tym miesiącu) -->
+        <div id="planer-view-month" class="pt-4 space-y-4">
+          <div class="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <h3 class="font-display font-bold text-base sm:text-lg text-bloom-950">
+                Plan Wydatków i Zobowiązań — <span id="planer-month-title" class="text-bloom-600">Październik 2026</span>
+              </h3>
+              <p class="text-xs text-bloom-600">Możesz dopłacać częściowo (np. raty, zaliczki) lub kliknąć status, aby oznaczyć jako Zrealizowane</p>
+            </div>
+            <select id="planerTypeFilter" onchange="renderAll()" class="text-xs px-3 py-2 rounded-xl border border-bloom-200 bg-white/90 font-semibold text-bloom-900">
+              <option value="ALL">Wszystkie typy pozycji</option>
+              <option value="Chcę kupić">Chcę kupić</option>
+              <option value="Prezent">Prezenty</option>
+              <option value="Dług">Długi / Zobowiązania</option>
+            </select>
+          </div>
+
+          <!-- Tabela Planera Miesięcznego (Desktop/Tablet) -->
+          <div class="desktop-table-view overflow-x-auto">
+            <table class="w-full text-xs sm:text-sm text-left num-tab">
+              <thead>
+                <tr class="bg-bloom-50/80 border-b border-bloom-200 text-[11px] uppercase text-bloom-700">
+                  <th class="py-3 px-2.5 rounded-tl-xl">Typ</th>
+                  <th class="py-3 px-2.5">Nazwa pozycji</th>
+                  <th class="py-3 px-2.5">Dla kogo / Wobec kogo</th>
+                  <th class="py-3 px-2.5 text-center">Miesiąc</th>
+                  <th class="py-3 px-2.5 text-right">Kwota całk.</th>
+                  <th class="py-3 px-2.5 text-right">Wpłacono</th>
+                  <th class="py-3 px-2.5 text-right">Pozostało</th>
+                  <th class="py-3 px-2.5">Status</th>
+                  <th class="py-3 px-2.5 text-right rounded-tr-xl">Akcje</th>
+                </tr>
+              </thead>
+              <tbody id="planner-table-body" class="divide-y divide-bloom-100/80"></tbody>
+            </table>
+          </div>
+
+          <!-- Karty Planera Miesięcznego (Telefon) -->
+          <div id="planner-cards-body" class="mobile-cards-view space-y-2.5"></div>
+
+          <!-- Sekcja Rat 0% przypadających na wybrany miesiąc -->
+          <div id="month-installments-box" class="pt-3 border-t border-bloom-200/60"></div>
+        </div>
+
+        <!-- POD-WIDOK 3B: WISHLISTA (Poczekalnia + Ręczny Status + Koszt Alternatywny) -->
+        <div id="planer-view-wishlist" class="hidden pt-4 space-y-4">
+          <div class="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <h3 class="font-display font-bold text-base sm:text-lg text-bloom-950">Wishlista — Przemyślane Zakupy</h3>
+              <p class="text-xs text-bloom-600">Zapisz link do produktu, porównaj koszt alternatywny z celem oszczędnościowym i sam zdecyduj o statusie</p>
+            </div>
+            <span id="wishlist-saved-pill" class="text-xs font-bold px-3 py-1.5 rounded-xl bg-emerald-100/80 text-emerald-800 num-tab"></span>
+          </div>
+
+          <div id="wishlist-grid" class="grid grid-cols-1 md:grid-cols-2 gap-3.5 num-tab"></div>
+        </div>
+
+        <!-- POD-WIDOK 3C: RATY 0% (Harmonogramy 2, 3, 5, 10 rat) -->
+        <div id="planer-view-installments" class="hidden pt-4 space-y-4">
+          <div>
+            <h3 class="font-display font-bold text-base sm:text-lg text-bloom-950">Plany Ratalne 0%</h3>
+            <p class="text-xs text-bloom-600">Kliknij w kafelek konkretnego miesiąca, aby oznaczyć daną ratę 0% jako opłaconą</p>
+          </div>
+          <div id="installments-list" class="space-y-3.5 num-tab"></div>
+        </div>
+
+        <!-- POD-WIDOK 3D: CELE OSZCZĘDNOŚCIOWE -->
+        <div id="planer-view-goals" class="hidden pt-4 space-y-4">
+          <div>
+            <h3 class="font-display font-bold text-base sm:text-lg text-bloom-950">Cele Oszczędnościowe</h3>
+            <p class="text-xs text-bloom-600">Buduj swoje cele krok po kroku i sprawdzaj, jaką część celu stanowią pozycje z Wishlisty</p>
+          </div>
+          <div id="goals-grid" class="grid grid-cols-1 md:grid-cols-2 gap-4 num-tab"></div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ==================== ZAKŁADKA 4: USTAWIENIA ==================== -->
+    <section id="tab-ustawienia" class="hidden space-y-5">
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+
+        <!-- KARTA 1: EXCEL (.XLSX) & CSV & BACKUP JSON -->
+        <div class="glass-panel rounded-2xl p-5 space-y-4">
+          <div>
+            <h3 class="font-display font-bold text-lg text-bloom-950">Centrum Danych (.xlsx, .csv, .json)</h3>
+            <p class="text-xs text-bloom-600 mt-0.5">
+              Pobierz pełną kopię zapasową swoich finansów na iPhone'a (Pliki / iCloud) lub wyeksportuj zestawienie do Excela.
+            </p>
+          </div>
+
+          <div class="p-3.5 rounded-2xl pink-soft-gradient border border-bloom-200 space-y-2">
+            <p class="text-xs font-bold text-bloom-950">Udostępnianie kopii zapasowej (iOS Share / Pliki / Chmura)</p>
+            <div class="flex flex-wrap gap-2">
+              <button onclick="shareBackupNative('xlsx')" class="pink-gradient text-white text-xs font-semibold px-3.5 py-2 rounded-xl shadow-sm">
+                Udostępnij arkusz Excel (.xlsx)
+              </button>
+              <button onclick="shareBackupNative('json')" class="bg-white text-bloom-900 border border-bloom-300 text-xs font-semibold px-3.5 py-2 rounded-xl">
+                Udostępnij pełny Backup (.json)
+              </button>
+            </div>
+          </div>
+
+          <div class="space-y-2">
+            <p class="text-xs font-bold text-bloom-900">1. Eksport danych do pliku:</p>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <button onclick="exportExcelWorkbook()" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold px-3 py-2.5 rounded-xl shadow-sm text-left flex items-center justify-between">
+                <span>Pobierz pełną bazę (.xlsx)</span>
+                <span class="text-[10px] bg-white/20 px-1.5 py-0.5 rounded">6 arkuszy</span>
+              </button>
+              <button onclick="exportDataJSON()" class="bg-white hover:bg-bloom-50 text-bloom-950 border border-bloom-300 text-xs font-semibold px-3 py-2.5 rounded-xl text-left flex items-center justify-between">
+                <span>Pobierz Backup (.json)</span>
+                <span class="text-[10px] bg-bloom-100 px-1.5 py-0.5 rounded">Pełny stan</span>
+              </button>
+              <button onclick="exportCSV('history')" class="bg-white hover:bg-bloom-50 text-bloom-900 border border-bloom-200 text-xs font-semibold px-3 py-2 rounded-xl text-left">
+                Pobierz Historię Sald (.csv)
+              </button>
+              <button onclick="exportCSV('planner')" class="bg-white hover:bg-bloom-50 text-bloom-900 border border-bloom-200 text-xs font-semibold px-3 py-2 rounded-xl text-left">
+                Pobierz Planer i Raty (.csv)
+              </button>
+            </div>
+          </div>
+
+          <div class="pt-3 border-t border-bloom-200/60 space-y-2.5">
+            <p class="text-xs font-bold text-bloom-900">2. Wczytaj kopię zapasową z pliku (.json):</p>
+            <label class="pink-gradient text-white text-xs font-semibold px-4 py-2.5 rounded-xl shadow-sm text-center cursor-pointer block">
+              Wgraj plik Backup (.json)
+              <input type="file" accept=".json,application/json" onchange="importDataJSON(event)" class="hidden" />
+            </label>
+          </div>
+
+          <div class="pt-3 border-t border-bloom-200/60 flex flex-wrap justify-between items-center gap-2">
+            <span class="text-[11px] text-bloom-700">Zarządzanie bazą demonstracyjną:</span>
+            <div class="flex gap-2">
+              <button onclick="askRestoreDemo()" class="bg-bloom-100 hover:bg-bloom-200 text-bloom-900 text-xs font-semibold px-3 py-1.5 rounded-xl">
+                Dane przykładowe
+              </button>
+              <button onclick="askClearDatabase()" class="bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-bold px-3 py-1.5 rounded-xl">
+                Wyczyść bazę
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- KARTA 2: DOMYŚLNY BUDŻET, PRYWATNOŚĆ, KURSY WALUT I PWA -->
+        <div class="space-y-5">
+          <div class="glass-panel rounded-2xl p-5 space-y-4">
+            <h3 class="font-display font-bold text-lg text-bloom-950">Budżet na Przyjemności, Prywatność i Waluty</h3>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label class="block text-xs font-semibold text-bloom-700 mb-1">Domyślny budżet na przyjemności (zł / msc)</label>
+                <input type="number" id="set-default-pleasure" step="50" class="w-full px-3 py-2 rounded-xl border border-bloom-200 text-xs font-bold bg-white num-tab" />
+              </div>
+              <div class="flex items-end">
+                <label class="flex items-center gap-2 text-xs font-semibold text-bloom-900 bg-white/85 px-3 py-2 rounded-xl border border-bloom-200 w-full cursor-pointer">
+                  <input type="checkbox" id="set-hide-on-start" class="accent-pink-600 rounded w-4 h-4" />
+                  <span>Ukrywaj salda po uruchomieniu</span>
+                </label>
+              </div>
+            </div>
+
+            <div class="pt-2 border-t border-bloom-100 space-y-3">
+              <label class="flex items-center gap-2 text-xs font-semibold text-bloom-900 cursor-pointer">
+                <input type="checkbox" id="set-use-currencies" class="accent-pink-600 rounded w-4 h-4" />
+                <span>Przeliczaj konta walutowe (EUR / USD / GBP) na PLN w sumie majątku (opcjonalne)</span>
+              </label>
+
+              <div class="grid grid-cols-3 gap-3">
+                <div>
+                  <label class="block text-xs font-semibold text-bloom-700 mb-1">Kurs EUR (zł)</label>
+                  <input type="number" id="set-rate-eur" step="0.01" class="w-full px-3 py-2 rounded-xl border border-bloom-200 text-xs font-bold bg-white num-tab" />
+                </div>
+                <div>
+                  <label class="block text-xs font-semibold text-bloom-700 mb-1">Kurs USD (zł)</label>
+                  <input type="number" id="set-rate-usd" step="0.01" class="w-full px-3 py-2 rounded-xl border border-bloom-200 text-xs font-bold bg-white num-tab" />
+                </div>
+                <div>
+                  <label class="block text-xs font-semibold text-bloom-700 mb-1">Kurs GBP (zł)</label>
+                  <input type="number" id="set-rate-gbp" step="0.01" class="w-full px-3 py-2 rounded-xl border border-bloom-200 text-xs font-bold bg-white num-tab" />
+                </div>
+              </div>
+            </div>
+
+            <button onclick="saveSettingsForm()" class="pink-gradient text-white text-xs font-semibold px-5 py-2.5 rounded-xl shadow-sm">
+              Zapisz ustawienia
+            </button>
+          </div>
+
+          <div class="glass-panel rounded-2xl p-5 space-y-2.5">
+            <h3 class="font-display font-bold text-base text-bloom-950">Tryb Offline PWA (GitHub Pages / iPhone)</h3>
+            <p class="text-xs text-bloom-700 leading-relaxed">
+              Aby aplikacja dodana do ekranu głównego iPhone'a działała również całkowicie offline, możesz wrzucić do repozytorium GitHub Pages obok pliku <strong>index.html</strong> poniższy plik <strong>sw.js</strong>.
+            </p>
+            <button onclick="downloadServiceWorkerFile()" class="bg-bloom-100/80 hover:bg-bloom-200 text-bloom-950 text-xs font-semibold px-4 py-2 rounded-xl border border-bloom-300">
+              Pobierz plik sw.js (Service Worker)
+            </button>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ==================== DOLNY PASEK NAWIGACJI (WIDOK TELEFON - 4 ZAKŁADKI) ==================== -->
+  <nav id="phone-bottom-nav" class="fixed bottom-0 left-0 right-0 z-40 glass-header border-t border-bloom-200 px-2 py-1.5 grid-cols-4 gap-1 items-center" style="padding-bottom: calc(0.4rem + var(--safe-bottom));">
+    <button onclick="switchTab('dashboard')" id="mob-btn-dashboard" class="flex flex-col items-center justify-center gap-1 py-1.5 rounded-xl text-[10px] font-bold text-bloom-700 bg-bloom-100/80">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg>
+      <span>Dashboard</span>
+    </button>
+    <button onclick="switchTab('konta')" id="mob-btn-konta" class="flex flex-col items-center justify-center gap-1 py-1.5 rounded-xl text-[10px] font-semibold text-bloom-800">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
+      <span>Konta</span>
+    </button>
+    <button onclick="switchTab('planer')" id="mob-btn-planer" class="flex flex-col items-center justify-center gap-1 py-1.5 rounded-xl text-[10px] font-semibold text-bloom-800">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+      <span>Planer</span>
+    </button>
+    <button onclick="switchTab('ustawienia')" id="mob-btn-ustawienia" class="flex flex-col items-center justify-center gap-1 py-1.5 rounded-xl text-[10px] font-semibold text-bloom-800">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      <span>Ustawienia</span>
+    </button>
+  </nav>
+
+  <!-- ==================== MODAL 1: AKTUALIZACJA SALDA KONTA (Z RÓŻNICĄ I NOTATKĄ) ==================== -->
+  <div id="balanceUpdateModal" class="fixed inset-0 z-50 hidden bg-bloom-950/35 backdrop-blur-sm flex items-center justify-center p-3">
+    <div class="glass-panel bg-white/95 rounded-3xl max-w-lg w-full p-5 sm:p-6 shadow-2xl max-h-[92vh] overflow-y-auto">
+      <div class="flex items-center justify-between pb-3 border-b border-bloom-100">
+        <h3 class="font-display font-bold text-lg text-bloom-950">Aktualizuj saldo konta</h3>
+        <button onclick="closeModalById('balanceUpdateModal')" class="text-bloom-400 hover:text-bloom-700 p-1">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+
+      <form onsubmit="saveBalanceUpdate(event)" class="space-y-3.5 mt-4">
+        <div>
+          <label class="block text-xs font-semibold text-bloom-700 mb-1">Wybierz konto *</label>
+          <select id="bu-account-id" onchange="onBalanceUpdateAccountChange()" class="w-full px-3 py-2 rounded-xl border border-bloom-200 text-sm font-semibold bg-white"></select>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3 num-tab">
+          <div class="p-3 rounded-xl bg-bloom-50/70 border border-bloom-200/70">
+            <span class="text-[10px] font-bold uppercase text-bloom-600 block">Poprzednie saldo</span>
+            <span id="bu-old-balance-label" class="font-display font-bold text-base text-bloom-950">0,00 zł</span>
+          </div>
+          <div id="bu-delta-box" class="p-3 rounded-xl bg-white border border-bloom-200/70">
+            <span class="text-[10px] font-bold uppercase text-bloom-600 block">Wyliczona różnica</span>
+            <span id="bu-delta-label" class="font-display font-bold text-base text-bloom-950">0,00 zł</span>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-semibold text-bloom-700 mb-1">Nowe aktualne saldo *</label>
+            <input type="number" id="bu-new-balance" step="0.01" required oninput="recalcBalanceDeltaPreview()" class="w-full px-3 py-2 rounded-xl border border-bloom-200 text-sm font-bold text-bloom-950 bg-white num-tab" />
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-bloom-700 mb-1">Data stanu *</label>
+            <input type="date" id="bu-date" required class="w-full px-3 py-2 rounded-xl border border-bloom-200 text-sm bg-white num-tab" />
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-bloom-700 mb-1">Z czego wynika różnica? (Kategoria)</label>
+          <select id="bu-category" class="w-full px-3 py-2 rounded-xl border border-bloom-200 text-sm bg-white">
+            <option value="Zakupy bieżące">Zakupy bieżące</option>
+            <option value="Spłata rat">Spłata rat</option>
+            <option value="Przyjemności / Zachcianki">Przyjemności / Zachcianki</option>
+            <option value="Rachunki i opłaty">Rachunki i opłaty</option>
+            <option value="Prezent">Prezent</option>
+            <option value="Wynagrodzenie / Wpływ">Wynagrodzenie / Wpływ</option>
+            <option value="Inne">Inne</option>
+          </select>
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-bloom-700 mb-1">Krótka notatka opisująca różnicę</label>
+          <input type="text" id="bu-note" placeholder="np. Spłata raty 0% za suszarkę + zakupy w drogerii" class="w-full px-3 py-2 rounded-xl border border-bloom-200 text-sm bg-white" />
+        </div>
+
+        <div class="pt-3 border-t border-bloom-100 flex justify-end gap-2">
+          <button type="button" onclick="closeModalById('balanceUpdateModal')" class="px-4 py-2 rounded-xl text-xs font-semibold text-bloom-700 hover:bg-bloom-50">Anuluj</button>
+          <button type="submit" class="pink-gradient text-white px-5 py-2 rounded-xl text-xs font-bold shadow-sm">Zapisz nowe saldo</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ==================== MODAL 2: TRANSFER WEWNĘTRZNY (PRZELEW WŁASNY) ==================== -->
+  <div id="transferModal" class="fixed inset-0 z-50 hidden bg-bloom-950/35 backdrop-blur-sm flex items-center justify-center p-3">
+    <div class="glass-panel bg-white/95 rounded-3xl max-w-lg w-full p-5 sm:p-6 shadow-2xl max-h-[92vh] overflow-y-auto">
+      <div class="flex items-center justify-between pb-3 border-b border-bloom-100">
+        <div>
+          <h3 class="font-display font-bold text-lg text-bloom-950">Transfer wewnętrzny (Przelew własny)</h3>
+          <p class="text-xs text-bloom-600">Przelew między Twoimi kontami nie stanowi straty w bilansie</p>
+        </div>
+        <button onclick="closeModalById('transferModal')" class="text-bloom-400 hover:text-bloom-700 p-1">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+
+      <form onsubmit="saveInternalTransfer(event)" class="space-y-3.5 mt-4">
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-semibold text-bloom-700 mb-1">Z konta (źródło) *</label>
+            <select id="tr-from" class="w-full px-3 py-2 rounded-xl border border-bloom-200 text-sm bg-white"></select>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-bloom-700 mb-1">Na konto (docelowe) *</label>
+            <select id="tr-to" class="w-full px-3 py-2 rounded-xl border border-bloom-200 text-sm bg-white"></select>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-semibold text-bloom-700 mb-1">Kwota przelewu *</label>
+            <input type="number" id="tr-amount" step="0.01" min="0.01" required placeholder="np. 500" class="w-full px-3 py-2 rounded-xl border border-bloom-200 text-sm font-bold text-bloom-950 bg-white num-tab" />
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-bloom-700 mb-1">Data przelewu *</label>
+            <input type="date" id="tr-date" required class="w-full px-3 py-2 rounded-xl border border-bloom-200 text-sm bg-white num-tab" />
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-bloom-700 mb-1">Notatka (opcjonalnie)</label>
+          <input type="text" id="tr-note" placeholder="np. Zasilenie konta oszczędnościowego" class="w-full px-3 py-2 rounded-xl border border-bloom-200 text-sm bg-white" />
+        </div>
+
+        <div class="pt-3 border-t border-bloom-100 flex justify-end gap-2">
+          <button type="button" onclick="closeModalById('transferModal')" class="px-4 py-2 rounded-xl text-xs font-semibold text-bloom-700 hover:bg-bloom-50">Anuluj</button>
+          <button type="submit" class="pink-gradient text-white px-5 py-2 rounded-xl text-xs font-bold shadow-sm">Wykonaj transfer ⇄</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ==================== MODAL 3: DODAJ / EDYTUJ KONTO ==================== -->
+  <div id="accountModal" class="fixed inset-0 z-50 hidden bg-bloom-950/35 backdrop-blur-sm flex items-center justify-center p-3">
+    <div class="glass-panel bg-white/95 rounded-3xl max-w-lg w-full p-5 sm:p-6 shadow-2xl max-h-[92vh] overflow-y-auto">
+      <div class="flex items-center justify-between pb-3 border-b border-bloom-100">
+        <h3 id="accountModalTitle" class="font-display font-bold text-lg text-bloom-950">Dodaj konto</h3>
+        <button onclick="closeModalById('accountModal')" class="text-bloom-400 hover:text-bloom-700 p-1">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+
+      <form onsubmit="saveAccountForm(event)" class="space-y-3.5 mt-4">
+        <input type="hidden" id="acc-id" />
+        <div>
+          <label class="block text-xs font-semibold text-bloom-700 mb-1">Nazwa konta / portfela *</label>
+          <input type="text" id="acc-name" required placeholder="np. Konto Oszczędnościowe, Gotówka..." class="w-full px-3 py-2 rounded-xl border border-bloom-200 text-sm bg-white" />
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-semibold text-bloom-700 mb-1">Rodzaj konta</label>
+            <select id="acc-type" class="w-full px-3 py-2 rounded-xl border border-bloom-200 text-sm bg-white">
+              <option value="Konto osobiste">Konto osobiste</option>
+              <option value="Konto oszczędnościowe">Konto oszczędnościowe</option>
+              <option value="Gotówka">Gotówka</option>
+              <option value="Waluta">Waluta obca</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-bloom-700 mb-1">Waluta</label>
+            <select id="acc-currency" class="w-full px-3 py-2 rounded-xl border border-bloom-200 text-sm bg-white font-semibold">
+              <option value="PLN">PLN (zł)</option>
+              <option value="EUR">EUR (€)</option>
+              <option value="USD">USD ($)</option>
+              <option value="GBP">GBP (£)</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-semibold text-bloom-700 mb-1">Aktualne saldo *</label>
+            <input type="number" id="acc-balance" step="0.01" required class="w-full px-3 py-2 rounded-xl border border-bloom-200 text-sm font-bold text-bloom-950 bg-white num-tab" />
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-bloom-700 mb-1">Data aktualizacji *</label>
+            <input type="date" id="acc-date" required class="w-full px-3 py-2 rounded-xl border border-bloom-200 text-sm bg-white num-tab" />
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-bloom-700 mb-1">Notatka</label>
+          <input type="text" id="acc-note" placeholder="np. Główne konto na wydatki" class="w-full px-3 py-2 rounded-xl border border-bloom-200 text-sm bg-white" />
+        </div>
+
+        <div class="pt-3 border-t border-bloom-100 flex justify-end gap-2">
+          <button type="button" onclick="closeModalById('accountModal')" class="px-4 py-2 rounded-xl text-xs font-semibold text-bloom-700 hover:bg-bloom-50">Anuluj</button>
+          <button type="submit" class="pink-gradient text-white px-5 py-2 rounded-xl text-xs font-bold shadow-sm">Zapisz konto</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ==================== MODAL 4: DODAJ / EDYTUJ POZYCJĘ PLANERA MIESIĘCZNEGO ==================== -->
+  <div id="plannerModal" class="fixed inset-0 z-50 hidden bg-bloom-950/35 backdrop-blur-sm flex items-center justify-center p-3">
+    <div class="glass-panel bg-white/95 rounded-3xl max-w-lg w-full p-5 sm:p-6 shadow-2xl max-h-[92vh] overflow-y-auto">
+      <div class="flex items-center justify-between pb-3 border-b border-bloom-100">
+        <h3 id="plannerModalTitle" class="font-display font-bold text-lg text-bloom-950">Dodaj pozycję do Planera</h3>
+        <button onclick="closeModalById('plannerModal')" class="text-bloom-400 hover:text-bloom-700 p-1">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+
+      <form onsubmit="savePlannerForm(event)" class="space-y-3.5 mt-4">
+        <input type="hidden" id="pl-id" />
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-semibold text-bloom-700 mb-1">Rodzaj pozycji *</label>
+            <select id="pl-type" class="w-full px-3 py-2 rounded-xl border border-bloom-200 text-sm font-semibold bg-white">
+              <option value="Chcę kupić">Chcę kupić</option>
+              <option value="Prezent">Prezent</option>
+              <option value="Dług">Dług / Zobowiązanie</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-bloom-700 mb-1">Zaplanowany miesiąc *</label>
+            <input type="month" id="pl-month" required class="w-full px-3 py-2 rounded-xl border border-bloom-200 text-sm font-bold bg-white num-tab" />
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-bloom-700 mb-1">Nazwa zakupu / zobowiązania *</label>
+          <input type="text" id="pl-title" required placeholder="np. Botki skórzane, Prezent urodzinowy, Zwrot za bilety..." class="w-full px-3 py-2 rounded-xl border border-bloom-200 text-sm bg-white" />
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-bloom-700 mb-1">Wobec kogo / Dla kogo (opcjonalnie)</label>
+          <input type="text" id="pl-person" placeholder="np. Dla Mamy, Wobec Klaudii, Allegro Pay..." class="w-full px-3 py-2 rounded-xl border border-bloom-200 text-sm bg-white" />
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-semibold text-bloom-700 mb-1">Kwota całkowita (zł) *</label>
+            <input type="number" id="pl-total" step="0.01" min="0.01" required class="w-full px-3 py-2 rounded-xl border border-bloom-200 text-sm font-bold text-bloom-950 bg-white num-tab" />
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-bloom-700 mb-1">Opłacono dotychczas (zł)</label>
+            <input type="number" id="pl-paid" step="0.01" min="0" value="0" class="w-full px-3 py-2 rounded-xl border border-bloom-200 text-sm font-bold text-emerald-700 bg-white num-tab" />
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-bloom-700 mb-1">Notatka / Link</label>
+          <input type="text" id="pl-note" placeholder="Dodatkowe informacje..." class="w-full px-3 py-2 rounded-xl border border-bloom-200 text-sm bg-white" />
+        </div>
+
+        <div class="pt-3 border-t border-bloom-100 flex justify-end gap-2">
+          <button type="button" onclick="closeModalById('plannerModal')" class="px-4 py-2 rounded-xl text-xs font-semibold text-bloom-700 hover:bg-bloom-50">Anuluj</button>
+          <button type="submit" class="pink-gradient text-white px-5 py-2 rounded-xl text-xs font-bold shadow-sm">Zapisz w Planerze</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ==================== MODAL 5: DOPŁATA CZĘŚCIOWA DO POZYCJI PLANERA ==================== -->
+  <div id="partialPayModal" class="fixed inset-0 z-50 hidden bg-bloom-950/35 backdrop-blur-sm flex items-center justify-center p-3">
+    <div class="glass-panel bg-white/95 rounded-3xl max-w-md w-full p-5 sm:p-6 shadow-2xl">
+      <div class="flex items-center justify-between pb-3 border-b border-bloom-100">
+        <h3 id="partialPayTitle" class="font-display font-bold text-base text-bloom-950">Częściowa wpłata</h3>
+        <button onclick="closeModalById('partialPayModal')" class="text-bloom-400 hover:text-bloom-700 p-1">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <form onsubmit="savePartialPay(event)" class="space-y-3.5 mt-4">
+        <input type="hidden" id="pp-id" />
+        <p id="pp-info" class="text-xs text-bloom-700 num-tab"></p>
+        <div>
+          <label class="block text-xs font-semibold text-bloom-700 mb-1">Kwota dopłaty (zł) *</label>
+          <input type="number" id="pp-amount" step="0.01" required class="w-full px-3 py-2 rounded-xl border border-bloom-200 text-sm font-bold text-bloom-950 bg-white num-tab" />
+        </div>
+        <div class="pt-2 flex justify-end gap-2">
+          <button type="button" onclick="closeModalById('partialPayModal')" class="px-4 py-2 rounded-xl text-xs font-semibold text-bloom-700">Anuluj</button>
+          <button type="submit" class="pink-gradient text-white px-5 py-2 rounded-xl text-xs font-bold shadow-sm">Zapisz wpłatę</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ==================== MODAL 6: DODAJ / EDYTUJ WISHLISTĘ ==================== -->
+  <div id="wishlistModal" class="fixed inset-0 z-50 hidden bg-bloom-950/35 backdrop-blur-sm flex items-center justify-center p-3">
+    <div class="glass-panel bg-white/95 rounded-3xl max-w-lg w-full p-5 sm:p-6 shadow-2xl max-h-[92vh] overflow-y-auto">
+      <div class="flex items-center justify-between pb-3 border-b border-bloom-100">
+        <h3 id="wishlistModalTitle" class="font-display font-bold text-lg text-bloom-950">Dodaj na Wishlistę</h3>
+        <button onclick="closeModalById('wishlistModal')" class="text-bloom-400 hover:text-bloom-700 p-1">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+
+      <form onsubmit="saveWishlistForm(event)" class="space-y-3.5 mt-4">
+        <input type="hidden" id="wl-id" />
+        <div>
+          <label class="block text-xs font-semibold text-bloom-700 mb-1">Nazwa wymarzonej rzeczy *</label>
+          <input type="text" id="wl-title" required placeholder="np. Torebka skórzana, Perfumy, Czytnik..." class="w-full px-3 py-2 rounded-xl border border-bloom-200 text-sm bg-white" />
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-semibold text-bloom-700 mb-1">Cena (zł) *</label>
+            <input type="number" id="wl-price" step="0.01" min="1" required class="w-full px-3 py-2 rounded-xl border border-bloom-200 text-sm font-bold text-bloom-950 bg-white num-tab" />
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-bloom-700 mb-1">Kategoria</label>
+            <input type="text" id="wl-category" value="Moda i Uroda" class="w-full px-3 py-2 rounded-xl border border-bloom-200 text-sm bg-white" />
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-semibold text-bloom-700 mb-1">Twój status (zmieniany ręcznie)</label>
+            <select id="wl-status" class="w-full px-3 py-2 rounded-xl border border-bloom-200 text-sm font-semibold bg-white">
+              <option value="Świeża myśl">Świeża myśl ✨</option>
+              <option value="Rozważam">Rozważam 🤔</option>
+              <option value="Przemyślane">Przemyślane ✓</option>
+              <option value="Odpuszczam">Odpuszczam ✕</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-bloom-700 mb-1">Powiąż z celem oszczędnościowym</label>
+            <select id="wl-goal-id" class="w-full px-3 py-2 rounded-xl border border-bloom-200 text-sm bg-white"></select>
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-bloom-700 mb-1">Link do produktu w sklepie (opcjonalnie)</label>
+          <input type="url" id="wl-url" placeholder="https://..." class="w-full px-3 py-2 rounded-xl border border-bloom-200 text-sm bg-white" />
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-bloom-700 mb-1">Notatka</label>
+          <input type="text" id="wl-note" placeholder="Dlaczego nad tym myślę?" class="w-full px-3 py-2 rounded-xl border border-bloom-200 text-sm bg-white" />
+        </div>
+
+        <div class="pt-3 border-t border-bloom-100 flex justify-end gap-2">
+          <button type="button" onclick="closeModalById('wishlistModal')" class="px-4 py-2 rounded-xl text-xs font-semibold text-bloom-700 hover:bg-bloom-50">Anuluj</button>
+          <button type="submit" class="pink-gradient text-white px-5 py-2 rounded-xl text-xs font-bold shadow-sm">Zapisz na Wishliście</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ==================== MODAL 7: DODAJ / EDYTUJ RATY 0% ==================== -->
+  <div id="installmentModal" class="fixed inset-0 z-50 hidden bg-bloom-950/35 backdrop-blur-sm flex items-center justify-center p-3">
+    <div class="glass-panel bg-white/95 rounded-3xl max-w-lg w-full p-5 sm:p-6 shadow-2xl">
+      <div class="flex items-center justify-between pb-3 border-b border-bloom-100">
+        <h3 id="installmentModalTitle" class="font-display font-bold text-lg text-bloom-950">Dodaj plan ratalny 0%</h3>
+        <button onclick="closeModalById('installmentModal')" class="text-bloom-400 hover:text-bloom-700 p-1">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+
+      <form onsubmit="saveInstallmentForm(event)" class="space-y-3.5 mt-4">
+        <input type="hidden" id="inst-id" />
+        <div>
+          <label class="block text-xs font-semibold text-bloom-700 mb-1">Przedmiot zakupu ratalnego *</label>
+          <input type="text" id="inst-title" required placeholder="np. Multistyler do włosów, Ekspres..." class="w-full px-3 py-2 rounded-xl border border-bloom-200 text-sm bg-white" />
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-bloom-700 mb-1">Sklep / Wobec kogo (np. RTV Euro AGD, Allegro Pay)</label>
+          <input type="text" id="inst-vendor" placeholder="np. RTV Euro AGD (Raty 0%)" class="w-full px-3 py-2 rounded-xl border border-bloom-200 text-sm bg-white" />
+        </div>
+        <div class="grid grid-cols-3 gap-3">
+          <div>
+            <label class="block text-xs font-semibold text-bloom-700 mb-1">Kwota całk. (zł) *</label>
+            <input type="number" id="inst-total" step="0.01" min="1" required class="w-full px-3 py-2 rounded-xl border border-bloom-200 text-sm font-bold bg-white num-tab" />
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-bloom-700 mb-1">Liczba rat 0% *</label>
+            <select id="inst-count" class="w-full px-3 py-2 rounded-xl border border-bloom-200 text-sm font-bold bg-white num-tab">
+              <option value="2">2 raty 0%</option>
+              <option value="3" selected>3 raty 0%</option>
+              <option value="4">4 raty 0%</option>
+              <option value="5">5 rat 0%</option>
+              <option value="6">6 rat 0%</option>
+              <option value="10">10 rat 0%</option>
+              <option value="12">12 rat 0%</option>
+              <option value="20">20 rat 0%</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-bloom-700 mb-1">Pierwsza rata *</label>
+            <input type="month" id="inst-start" required class="w-full px-3 py-2 rounded-xl border border-bloom-200 text-sm font-bold bg-white num-tab" />
+          </div>
+        </div>
+        <div class="pt-3 border-t border-bloom-100 flex justify-end gap-2">
+          <button type="button" onclick="closeModalById('installmentModal')" class="px-4 py-2 rounded-xl text-xs font-semibold text-bloom-700 hover:bg-bloom-50">Anuluj</button>
+          <button type="submit" class="pink-gradient text-white px-5 py-2 rounded-xl text-xs font-bold shadow-sm">Zapisz raty 0%</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ==================== MODAL 8: DODAJ / EDYTUJ CEL OSZCZĘDNOŚCIOWY ==================== -->
+  <div id="goalModal" class="fixed inset-0 z-50 hidden bg-bloom-950/35 backdrop-blur-sm flex items-center justify-center p-3">
+    <div class="glass-panel bg-white/95 rounded-3xl max-w-lg w-full p-5 sm:p-6 shadow-2xl">
+      <div class="flex items-center justify-between pb-3 border-b border-bloom-100">
+        <h3 id="goalModalTitle" class="font-display font-bold text-lg text-bloom-950">Cel oszczędnościowy</h3>
+        <button onclick="closeModalById('goalModal')" class="text-bloom-400 hover:text-bloom-700 p-1">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+
+      <form onsubmit="saveGoalForm(event)" class="space-y-3.5 mt-4">
+        <input type="hidden" id="gl-id" />
+        <div>
+          <label class="block text-xs font-semibold text-bloom-700 mb-1">Na co chcesz oszczędzić? *</label>
+          <input type="text" id="gl-title" required placeholder="np. Wakacje we Włoszech, Poduszka finansowa..." class="w-full px-3 py-2 rounded-xl border border-bloom-200 text-sm bg-white" />
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-semibold text-bloom-700 mb-1">Kwota docelowa (zł) *</label>
+            <input type="number" id="gl-target" step="10" min="1" required class="w-full px-3 py-2 rounded-xl border border-bloom-200 text-sm font-bold bg-white num-tab" />
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-bloom-700 mb-1">Już odłożono (zł) *</label>
+            <input type="number" id="gl-saved" step="10" min="0" value="0" required class="w-full px-3 py-2 rounded-xl border border-bloom-200 text-sm font-bold text-emerald-700 bg-white num-tab" />
+          </div>
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-bloom-700 mb-1">Opis / Motywacja</label>
+          <input type="text" id="gl-note" placeholder="Krótka notatka..." class="w-full px-3 py-2 rounded-xl border border-bloom-200 text-sm bg-white" />
+        </div>
+        <div class="pt-3 border-t border-bloom-100 flex justify-end gap-2">
+          <button type="button" onclick="closeModalById('goalModal')" class="px-4 py-2 rounded-xl text-xs font-semibold text-bloom-700 hover:bg-bloom-50">Anuluj</button>
+          <button type="submit" class="pink-gradient text-white px-5 py-2 rounded-xl text-xs font-bold shadow-sm">Zapisz cel</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ==================== MODAL 9: UNIWERSALNE POTWIERDZENIE (ZAMIAST CONFIRM/ALERT) ==================== -->
+  <div id="confirmModal" class="fixed inset-0 z-50 hidden bg-bloom-950/35 backdrop-blur-sm flex items-center justify-center p-3">
+    <div class="glass-panel bg-white/95 rounded-3xl max-w-sm w-full p-5 shadow-2xl text-center space-y-3">
+      <h3 id="confirmModalTitle" class="font-display font-bold text-base text-bloom-950">Potwierdzenie</h3>
+      <p id="confirmModalDesc" class="text-xs text-bloom-700 leading-relaxed"></p>
+      <div class="flex justify-center gap-2 pt-2">
+        <button onclick="closeModalById('confirmModal')" class="px-4 py-2 rounded-xl text-xs font-semibold text-bloom-700 bg-bloom-50 hover:bg-bloom-100">Anuluj</button>
+        <button id="confirmModalActionBtn" class="pink-gradient text-white px-5 py-2 rounded-xl text-xs font-bold shadow-sm">Potwierdź</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== TOAST NOTIFICATION ==================== -->
+  <div id="toastBox" class="fixed bottom-20 left-1/2 -translate-x-1/2 z-50 pointer-events-none opacity-0 transition-all duration-300 glass-panel bg-white/95 px-4 py-2.5 rounded-2xl shadow-lg border border-bloom-300 text-xs font-bold text-bloom-950 flex items-center gap-2">
+    <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+    <span id="toastText">Zapisano</span>
+  </div>
+
+  <!-- ==================== LOGIKA APLIKACJI JAVASCRIPT ==================== -->
+  <script>
+    const STORAGE_KEY = 'BUDGET_PLANER_BLOOMY_V2_DATA';
+
+    const MONTH_NAMES = [
+      'Styczeń', 'Luty', 'Marzec', 'Kwiecień', 'Maj', 'Czerwiec',
+      'Lipiec', 'Sierpień', 'Wrzesień', 'Październik', 'Listopad', 'Grudzień'
+    ];
+
+    function daysAgoISO(days) {
+      const d = new Date();
+      d.setHours(12, 0, 0, 0);
+      d.setDate(d.getDate() - days);
+      return d.toISOString().slice(0, 10);
+    }
+
+    function getCurrentYM() {
+      const now = new Date();
+      return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    }
+
+    function shiftYM(ym, delta) {
+      const [y, m] = ym.split('-').map(Number);
+      const d = new Date(y, m - 1 + delta, 1);
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    }
+
+    let state = {
+      selectedMonth: getCurrentYM(),
+      deviceMode: 'auto', // 'auto' | 'phone' | 'tablet'
+      planerSubView: 'month', // 'month' | 'wishlist' | 'installments' | 'goals'
+      isPrivacy: false,
+      settings: {
+        defaultPleasureBudget: 1200,
+        monthlyBudgets: {},
+        hideBalancesOnStart: false,
+        useCurrencies: true,
+        rates: { EUR: 4.30, USD: 3.98, GBP: 5.05 }
+      },
+      accounts: [],
+      history: [],
+      plannerItems: [],
+      wishlist: [],
+      installments: [],
+      goals: []
+    };
+
+    function showToast(msg) {
+      const box = document.getElementById('toastBox');
+      document.getElementById('toastText').textContent = msg;
+      box.classList.remove('opacity-0');
+      box.classList.add('opacity-100');
+      setTimeout(() => {
+        box.classList.remove('opacity-100');
+        box.classList.add('opacity-0');
+      }, 2400);
+    }
+
+    function openConfirmModal(title, desc, onConfirm) {
+      document.getElementById('confirmModalTitle').textContent = title;
+      document.getElementById('confirmModalDesc').textContent = desc;
+      const btn = document.getElementById('confirmModalActionBtn');
+      btn.onclick = () => {
+        closeModalById('confirmModal');
+        onConfirm();
+      };
+      document.getElementById('confirmModal').classList.remove('hidden');
+    }
+
+    function closeModalById(id) {
+      document.getElementById(id).classList.add('hidden');
+    }
+
+    function formatMonthLabel(ym) {
+      if (!ym || !ym.includes('-')) return ym || '-';
+      const [y, m] = ym.split('-');
+      return `${MONTH_NAMES[parseInt(m, 10) - 1] || m} ${y}`;
+    }
+
+    function formatDatePL(isoDate) {
+      if (!isoDate || !isoDate.includes('-')) return isoDate || '—';
+      const [y, m, d] = isoDate.split('-');
+      return `${parseInt(d, 10)}.${m}.${y}`;
+    }
+
+    function formatPLN(val, currency = 'PLN', showPlus = false) {
+      const suffix = currency === 'PLN' ? 'zł' : currency;
+      if (state.isPrivacy) return `••••• ${suffix}`;
+      const num = Number(val) || 0;
+      const sign = showPlus && num > 0 ? '+' : '';
+      return `${sign}${num.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${suffix}`;
+    }
+
+    function toPLN(amount, currency = 'PLN') {
+      const num = Number(amount) || 0;
+      if (currency === 'PLN' || !state.settings.useCurrencies) return num;
+      const rate = Number(state.settings.rates?.[currency]) || 1;
+      return num * rate;
+    }
+
+    function getDaysSince(isoDate) {
+      if (!isoDate) return 99;
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const [y, m, d] = isoDate.split('-').map(Number);
+      const target = new Date(y, m - 1, d);
+      target.setHours(0, 0, 0, 0);
+      return Math.max(0, Math.round((today - target) / 86400000));
+    }
+
+    function getFreshnessMeta(days) {
+      if (days === 0) {
+        return {
+          label: 'Dzisiaj',
+          longDesc: 'Zaktualizowano dzisiaj',
+          badgeCls: 'bg-emerald-100/90 text-emerald-800 border-emerald-200',
+          dotCls: 'bg-emerald-500',
+          ringCls: ''
+        };
+      }
+      if (days === 1) {
+        return {
+          label: 'Wczoraj',
+          longDesc: 'Zaktualizowano wczoraj (dane świeże)',
+          badgeCls: 'bg-emerald-100/90 text-emerald-800 border-emerald-200',
+          dotCls: 'bg-emerald-500',
+          ringCls: ''
+        };
+      }
+      if (days <= 4) {
+        return {
+          label: `${days} dni temu`,
+          longDesc: `Aktualizowano ${days} dni temu — dane mogą się różnić`,
+          badgeCls: 'bg-amber-100/90 text-amber-800 border-amber-300',
+          dotCls: 'bg-amber-500',
+          ringCls: 'ring-1 ring-amber-300'
+        };
+      }
+      return {
+        label: `${days} dni temu!`,
+        longDesc: `Nieaktualizowane od ${days} dni — wypada zaktualizować saldo!`,
+        badgeCls: 'bg-rose-100/95 text-rose-800 border-rose-300 font-bold',
+        dotCls: 'bg-rose-600 animate-pulse',
+        ringCls: 'ring-2 ring-rose-400/80'
+      };
+    }
+
+    function getMonthPleasureLimit(ym) {
+      if (state.settings.monthlyBudgets && state.settings.monthlyBudgets[ym] !== undefined) {
+        return Number(state.settings.monthlyBudgets[ym]);
+      }
+      return Number(state.settings.defaultPleasureBudget) || 1200;
+    }
+
+    // Inicjalizacja PWA (identyczna jak w pliku wzorcowym)
+    function initPWA() {
+      const canvas = document.createElement('canvas');
+      canvas.width = 192;
+      canvas.height = 192;
+      const ctx = canvas.getContext('2d');
+      const grad = ctx.createLinearGradient(0, 0, 192, 192);
+      grad.addColorStop(0, '#be185d');
+      grad.addColorStop(1, '#ec4899');
+      ctx.fillStyle = grad;
+      ctx.beginPath();
+      ctx.roundRect(0, 0, 192, 192, 44);
+      ctx.fill();
+
+      ctx.fillStyle = '#ffffff';
+      ctx.font = 'bold 78px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('B', 96, 82);
+      ctx.font = 'bold 24px sans-serif';
+      ctx.fillText('BUDGET', 96, 148);
+
+      const iconUrl = canvas.toDataURL('image/png');
+      document.getElementById('apple-touch-icon-link').href = iconUrl;
+
+      const manifest = {
+        name: 'BUDGET — Planer Finansowy',
+        short_name: 'BUDGET',
+        start_url: './index.html',
+        display: 'standalone',
+        background_color: '#fff9fc',
+        theme_color: '#db2777',
+        icons: [{ src: iconUrl, sizes: '192x192', type: 'image/png' }]
+      };
+      const manifestBlob = new Blob([JSON.stringify(manifest)], { type: 'application/json' });
+      document.getElementById('manifest-link').href = URL.createObjectURL(manifestBlob);
+
+      const updateNetStatus = () => {
+        const badge = document.getElementById('net-status-badge');
+        if (navigator.onLine) {
+          badge.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> Online`;
+          badge.className = 'inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-md bg-emerald-100/80 text-emerald-800';
+        } else {
+          badge.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span> Offline`;
+          badge.className = 'inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-md bg-amber-100 text-amber-800';
+        }
+      };
+      window.addEventListener('online', updateNetStatus);
+      window.addEventListener('offline', updateNetStatus);
+      updateNetStatus();
+    }
+
+    function loadDemoData() {
+      const curYM = getCurrentYM();
+      const prevYM = shiftYM(curYM, -1);
+      const nextYM = shiftYM(curYM, 1);
+
+      state.selectedMonth = curYM;
+      state.settings = {
+        defaultPleasureBudget: 1200,
+        monthlyBudgets: { [curYM]: 1200, [nextYM]: 1000 },
+        hideBalancesOnStart: false,
+        useCurrencies: true,
+        rates: { EUR: 4.30, USD: 3.98, GBP: 5.05 }
+      };
+
+      state.accounts = [
+        {
+          id: 'acc_1',
+          name: 'Konto Główne (Millennium)',
+          type: 'Konto osobiste',
+          currency: 'PLN',
+          balance: 4350.00,
+          prevBalance: 4720.00,
+          lastDelta: -370.00,
+          lastUpdated: daysAgoISO(0),
+          note: 'Rata 0% za styler + drogeria Rossmann'
+        },
+        {
+          id: 'acc_2',
+          name: 'Konto Oszczędnościowe Profit',
+          type: 'Konto oszczędnościowe',
+          currency: 'PLN',
+          balance: 15200.00,
+          prevBalance: 14200.00,
+          lastDelta: 1000.00,
+          lastUpdated: daysAgoISO(2),
+          note: 'Przelew własny na cele oszczędnościowe'
+        },
+        {
+          id: 'acc_3',
+          name: 'Portfel (Gotówka)',
+          type: 'Gotówka',
+          currency: 'PLN',
+          balance: 260.00,
+          prevBalance: 410.00,
+          lastDelta: -150.00,
+          lastUpdated: daysAgoISO(6),
+          note: 'Kawa na mieście, kwiaty i piekarnia'
+        },
+        {
+          id: 'acc_4',
+          name: 'Subkonto Walutowe EUR',
+          type: 'Waluta',
+          currency: 'EUR',
+          balance: 400.00,
+          prevBalance: 350.00,
+          lastDelta: 50.00,
+          lastUpdated: daysAgoISO(1),
+          note: 'Odłożone na wyjazd do Włoch'
+        }
+      ];
+
+      state.history = [
+        {
+          id: 'h_1',
+          kind: 'update',
+          accountId: 'acc_1',
+          accountName: 'Konto Główne (Millennium)',
+          currency: 'PLN',
+          oldBalance: 4720.00,
+          newBalance: 4350.00,
+          delta: -370.00,
+          category: 'Spłata rat',
+          note: 'Rata 0% za multistyler + zakupy w drogerii',
+          date: daysAgoISO(0)
+        },
+        {
+          id: 'h_2',
+          kind: 'transfer',
+          accountId: 'acc_1',
+          accountName: 'Konto Główne ➔ Oszczędnościowe Profit',
+          currency: 'PLN',
+          oldBalance: 5720.00,
+          newBalance: 4720.00,
+          delta: 1000.00,
+          category: 'Transfer wewnętrzny',
+          note: 'Przelew własny na oszczędności (neutralny)',
+          date: daysAgoISO(2)
+        },
+        {
+          id: 'h_3',
+          kind: 'update',
+          accountId: 'acc_3',
+          accountName: 'Portfel (Gotówka)',
+          currency: 'PLN',
+          oldBalance: 410.00,
+          newBalance: 260.00,
+          delta: -150.00,
+          category: 'Przyjemności / Zachcianki',
+          note: 'Kawa, słodkości i kwiaty do domu',
+          date: daysAgoISO(6)
+        }
+      ];
+
+      state.plannerItems = [
+        {
+          id: 'pl_1',
+          month: curYM,
+          type: 'Chcę kupić',
+          title: 'Jesienne botki skórzane',
+          person: '',
+          totalAmount: 380,
+          paidAmount: 380,
+          status: 'Zrealizowane',
+          note: 'Kupione z rabatem -20%'
+        },
+        {
+          id: 'pl_2',
+          month: curYM,
+          type: 'Prezent',
+          title: 'Zestaw kosmetyków SPA i świeca',
+          person: 'Dla Mamy (Urodziny)',
+          totalAmount: 220,
+          paidAmount: 100,
+          status: 'W trakcie',
+          note: 'Świeca już kupiona, został zestaw'
+        },
+        {
+          id: 'pl_3',
+          month: curYM,
+          type: 'Dług',
+          title: 'Zwrot za wspólny prezent i bilety',
+          person: 'Wobec Klaudii',
+          totalAmount: 160,
+          paidAmount: 60,
+          status: 'W trakcie',
+          note: 'Zostało 100 zł do przelania BLIKiem'
+        },
+        {
+          id: 'pl_4',
+          month: nextYM,
+          type: 'Chcę kupić',
+          title: 'Wełniany kardigan w odcieniu pudrowym',
+          person: '',
+          totalAmount: 320,
+          paidAmount: 0,
+          status: 'Do realizacji',
+          note: 'Zaplanowane na kolejny miesiąc'
+        }
+      ];
+
+      state.installments = [
+        {
+          id: 'inst_1',
+          title: 'Multistyler do włosów',
+          vendor: 'RTV Euro AGD (Raty 0%)',
+          totalAmount: 1200,
+          count: 3,
+          startMonth: prevYM,
+          paidMonths: [0, 1]
+        },
+        {
+          id: 'inst_2',
+          title: 'Perfumy niszowe 50 ml',
+          vendor: 'Sephora / PayPo (3 raty 0%)',
+          totalAmount: 540,
+          count: 3,
+          startMonth: curYM,
+          paidMonths: []
+        }
+      ];
+
+      state.goals = [
+        {
+          id: 'gl_1',
+          title: 'Wakacje we Włoszech (Wybrzeże Amalfi)',
+          targetAmount: 6000,
+          savedAmount: 3600,
+          note: 'Loty, hotel z widokiem i pyszne jedzenie'
+        },
+        {
+          id: 'gl_2',
+          title: 'Spokojna Poduszka Finansowa',
+          targetAmount: 15000,
+          savedAmount: 11600,
+          note: 'Pełen spokój i bezpieczeństwo'
+        }
+      ];
+
+      state.wishlist = [
+        {
+          id: 'wl_1',
+          title: 'Jedwabna poszewka na poduszkę + gumki',
+          price: 240,
+          category: 'Dom i Uroda',
+          status: 'Świeża myśl',
+          goalId: 'gl_1',
+          url: 'https://example.com/jedwabna-poszewka',
+          addedDate: daysAgoISO(1),
+          note: 'Piękny jasnoróżowy kolor, sprawdzam opinie'
+        },
+        {
+          id: 'wl_2',
+          title: 'Torebka skórzana w kolorze burgundowym',
+          price: 690,
+          category: 'Moda',
+          status: 'Rozważam',
+          goalId: 'gl_1',
+          url: 'https://example.com/torebka',
+          addedDate: daysAgoISO(5),
+          note: 'Zastanawiam się, czy potrzebuję kolejnej torebki'
+        },
+        {
+          id: 'wl_3',
+          title: 'Czytnik e-booków z podświetleniem',
+          price: 599,
+          category: 'Elektronika',
+          status: 'Przemyślane',
+          goalId: 'gl_2',
+          url: 'https://example.com/czytnik',
+          addedDate: daysAgoISO(14),
+          note: 'Przyda się w podróży i na jesienne wieczory'
+        },
+        {
+          id: 'wl_4',
+          title: 'Limitowany kubek termiczny (kolejny)',
+          price: 190,
+          category: 'Gadżety',
+          status: 'Odpuszczam',
+          goalId: 'gl_1',
+          url: '',
+          addedDate: daysAgoISO(8),
+          note: 'Mam już dwa świetne kubki w domu'
+        }
+      ];
+
+      saveState();
+    }
+
+    function saveState() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+      initPWA();
+
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (raw) {
+        try {
+          const parsed = JSON.parse(raw);
+          state = {
+            ...state,
+            ...parsed,
+            settings: { ...state.settings, ...(parsed.settings || {}) }
+          };
+          state.isPrivacy = Boolean(state.settings.hideBalancesOnStart);
+        } catch (e) {
+          loadDemoData();
+        }
+      } else {
+        loadDemoData();
+      }
+
+      const monthInput = document.getElementById('globalMonth');
+      monthInput.value = state.selectedMonth;
+      monthInput.addEventListener('change', (e) => {
+        if (e.target.value) {
+          state.selectedMonth = e.target.value;
+          saveState();
+          renderAll();
+        }
+      });
+
+      setDeviceMode(state.deviceMode || 'auto', false);
+      setPlanerSubView(state.planerSubView || 'month', false);
+      populateSettingsForm();
+      renderAll();
+    });
+
+    function setDeviceMode(mode, shouldSave = true) {
+      state.deviceMode = mode;
+      document.body.className = `force-${mode}`;
+      ['auto', 'phone', 'tablet'].forEach(m => {
+        const btn = document.getElementById(`dev-${m}`);
+        if (!btn) return;
+        btn.className = m === mode
+          ? 'px-2 py-1 rounded-lg transition flex items-center gap-1 seg-active'
+          : 'px-2 py-1 rounded-lg transition flex items-center gap-1 text-bloom-800 hover:bg-white/50';
+      });
+      if (shouldSave) saveState();
+    }
+
+    function togglePrivacyMode() {
+      state.isPrivacy = !state.isPrivacy;
+      document.getElementById('privacy-icon-open').classList.toggle('hidden', state.isPrivacy);
+      document.getElementById('privacy-icon-closed').classList.toggle('hidden', !state.isPrivacy);
+      renderAll();
+      showToast(state.isPrivacy ? 'Salda zostały ukryte' : 'Salda są widoczne');
+    }
+
+    function shiftSelectedMonth(delta) {
+      state.selectedMonth = shiftYM(state.selectedMonth, delta);
+      document.getElementById('globalMonth').value = state.selectedMonth;
+      saveState();
+      renderAll();
+    }
+
+    function jumpToCurrentMonth() {
+      state.selectedMonth = getCurrentYM();
+      document.getElementById('globalMonth').value = state.selectedMonth;
+      saveState();
+      renderAll();
+    }
+
+    function switchTab(tabName) {
+      ['dashboard', 'konta', 'planer', 'ustawienia'].forEach(t => {
+        const sec = document.getElementById(`tab-${t}`);
+        if (sec) sec.classList.add('hidden');
+        const btn = document.getElementById(`tab-btn-${t}`);
+        if (btn) btn.className = 'glass-subtle hover:bg-white text-bloom-900 px-3.5 py-1.5 rounded-xl text-xs font-semibold transition whitespace-nowrap flex items-center gap-1.5';
+        const mobBtn = document.getElementById(`mob-btn-${t}`);
+        if (mobBtn) mobBtn.className = 'flex flex-col items-center justify-center gap-1 py-1.5 rounded-xl text-[10px] font-semibold text-bloom-800';
+      });
+
+      document.getElementById(`tab-${tabName}`).classList.remove('hidden');
+      const activeBtn = document.getElementById(`tab-btn-${tabName}`);
+      if (activeBtn) activeBtn.className = 'tab-active px-3.5 py-1.5 rounded-xl text-xs font-semibold transition whitespace-nowrap flex items-center gap-1.5';
+      const activeMob = document.getElementById(`mob-btn-${tabName}`);
+      if (activeMob) activeMob.className = 'flex flex-col items-center justify-center gap-1 py-1.5 rounded-xl text-[10px] font-bold text-bloom-700 bg-bloom-100/80';
+    }
+
+    function setPlanerSubView(sub, shouldSave = true) {
+      state.planerSubView = sub;
+      ['month', 'wishlist', 'installments', 'goals'].forEach(s => {
+        const view = document.getElementById(`planer-view-${s}`);
+        const btn = document.getElementById(`psub-${s}`);
+        if (view) view.classList.toggle('hidden', s !== sub);
+        if (btn) {
+          btn.className = s === sub
+            ? 'px-3 py-1.5 rounded-lg transition seg-active'
+            : 'px-3 py-1.5 rounded-lg transition text-bloom-800 hover:bg-white/50';
+        }
+      });
+      if (shouldSave) saveState();
+    }
+
+    // Wyliczanie rat 0% przypadających na dany miesiąc
+    function getInstallmentsForMonth(ym) {
+      const result = [];
+      state.installments.forEach(inst => {
+        const count = Number(inst.count) || 1;
+        const single = Number(inst.totalAmount) / count;
+        for (let i = 0; i < count; i++) {
+          if (shiftYM(inst.startMonth, i) === ym) {
+            result.push({
+              instId: inst.id,
+              title: inst.title,
+              vendor: inst.vendor || 'Raty 0%',
+              idx: i,
+              count,
+              amount: single,
+              isPaid: (inst.paidMonths || []).includes(i)
+            });
+          }
+        }
+      });
+      return result;
+    }
+
+    // ==================== GŁÓWNE RENDEROWANIE ====================
+    function renderAll() {
+      const ym = state.selectedMonth;
+      const monthLabel = formatMonthLabel(ym);
+
+      // Ikona prywatności
+      document.getElementById('privacy-icon-open').classList.toggle('hidden', state.isPrivacy);
+      document.getElementById('privacy-icon-closed').classList.toggle('hidden', !state.isPrivacy);
+
+      // 1. Obliczenia Sald Kont
+      let dailyFunds = 0;
+      let savingsFunds = 0;
+      let deltaSumPLN = 0;
+      let maxDaysStale = 0;
+
+      state.accounts.forEach(a => {
+        const valPLN = toPLN(a.balance, a.currency);
+        const dPLN = toPLN(a.lastDelta || 0, a.currency);
+        deltaSumPLN += dPLN;
+        if (a.type === 'Konto oszczędnościowe' || a.type === 'Waluta') {
+          savingsFunds += valPLN;
+        } else {
+          dailyFunds += valPLN;
+        }
+        const days = getDaysSince(a.lastUpdated);
+        if (days > maxDaysStale) maxDaysStale = days;
+      });
+
+      const totalWealth = dailyFunds + savingsFunds;
+
+      // Pigułka świeżości w nagłówku
+      const freshPill = document.getElementById('header-freshness-pill');
+      const freshMeta = getFreshnessMeta(maxDaysStale);
+      freshPill.className = `text-[11px] font-semibold px-2.5 py-1 rounded-xl border transition flex items-center gap-1.5 ${freshMeta.badgeCls}`;
+      freshPill.innerHTML = `<span class="w-2 h-2 rounded-full ${freshMeta.dotCls}"></span><span>Salda: ${freshMeta.longDesc}</span>`;
+
+      // 2. Obliczenia Planera i Budżetu na Przyjemności dla wybranego miesiąca
+      const monthItems = state.plannerItems.filter(p => p.month === ym);
+      const monthInst = getInstallmentsForMonth(ym);
+
+      const wantsItems = monthItems.filter(p => p.type === 'Chcę kupić');
+      const giftsItems = monthItems.filter(p => p.type === 'Prezent');
+      const debtItems = monthItems.filter(p => p.type === 'Dług');
+
+      const wantsSum = wantsItems.reduce((s, x) => s + Number(x.totalAmount || 0), 0);
+      const giftsSum = giftsItems.reduce((s, x) => s + Number(x.totalAmount || 0), 0);
+      const debtsSum = debtItems.reduce((s, x) => s + Number(x.totalAmount || 0), 0);
+      const instSum = monthInst.reduce((s, x) => s + Number(x.amount || 0), 0);
+
+      const pleasureLimit = getMonthPleasureLimit(ym);
+      const pleasureUsed = wantsSum + giftsSum + instSum;
+      const pleasureRemaining = pleasureLimit - pleasureUsed;
+
+      const plannedAllTotal = pleasureUsed + debtsSum;
+      const plannedAllPaid = monthItems.reduce((s, x) => s + Number(x.paidAmount || 0), 0)
+        + monthInst.filter(x => x.isPaid).reduce((s, x) => s + x.amount, 0);
+      const plannedAllLeft = Math.max(0, plannedAllTotal - plannedAllPaid);
+
+      // Badges w nawigacji
+      document.getElementById('badge-konta').textContent = state.accounts.length;
+      document.getElementById('badge-planer').textContent = monthItems.length + monthInst.length;
+
+      // 3. Render KPI Cards
+      document.getElementById('kpi-total-wealth').textContent = formatPLN(totalWealth);
+      document.getElementById('kpi-savings-sub').textContent = `Oszcz.: ${formatPLN(savingsFunds)}`;
+      document.getElementById('kpi-daily-sub').textContent = `Bieżące: ${formatPLN(dailyFunds)}`;
+
+      const plEl = document.getElementById('kpi-pleasure-left');
+      plEl.textContent = formatPLN(pleasureRemaining);
+      plEl.className = `text-xl sm:text-2xl font-display font-bold mt-1.5 num-tab ${pleasureRemaining >= 0 ? 'text-emerald-600' : 'text-rose-600'}`;
+      document.getElementById('kpi-pleasure-limit').textContent = `Limit: ${formatPLN(pleasureLimit)}`;
+      document.getElementById('kpi-pleasure-used').textContent = `Wydano: ${formatPLN(pleasureUsed)}`;
+
+      document.getElementById('kpi-planned-total').textContent = formatPLN(plannedAllTotal);
+      document.getElementById('kpi-planned-paid').textContent = `Opłacono: ${formatPLN(plannedAllPaid)}`;
+      document.getElementById('kpi-planned-left').textContent = `Zostało: ${formatPLN(plannedAllLeft)}`;
+
+      const deltaEl = document.getElementById('kpi-delta-sum');
+      deltaEl.textContent = formatPLN(deltaSumPLN, 'PLN', true);
+      deltaEl.className = `text-xl sm:text-2xl font-display font-bold mt-1.5 num-tab ${deltaSumPLN >= 0 ? 'text-emerald-600' : 'text-rose-600'}`;
+      document.getElementById('kpi-freshness-sub').textContent = `Najstarsze: ${freshMeta.label}`;
+
+      const goalsTargetSum = state.goals.reduce((s, g) => s + Number(g.targetAmount || 0), 0);
+      const goalsSavedSum = state.goals.reduce((s, g) => s + Number(g.savedAmount || 0), 0);
+      const goalsPct = goalsTargetSum > 0 ? Math.round((goalsSavedSum / goalsTargetSum) * 100) : 0;
+      document.getElementById('kpi-goals-sub').textContent = `Cele: ${goalsPct}%`;
+
+      // 4. Tabela Zestawienia Finansowego na Dashboardzie
+      document.getElementById('table-period-label').textContent = monthLabel;
+      document.getElementById('m-daily-funds').textContent = formatPLN(dailyFunds);
+      document.getElementById('m-savings-funds').textContent = formatPLN(savingsFunds);
+      document.getElementById('m-pleasure-limit').textContent = formatPLN(pleasureLimit);
+      document.getElementById('m-pleasure-breakdown').textContent = `Chcę kupić: ${formatPLN(wantsSum)} | Prezenty: ${formatPLN(giftsSum)} | Raty 0%: ${formatPLN(instSum)}`;
+      document.getElementById('m-pleasure-used').textContent = formatPLN(pleasureUsed);
+
+      const mRemRow = document.getElementById('m-pleasure-row');
+      const mRemVal = document.getElementById('m-pleasure-remaining');
+      mRemVal.textContent = formatPLN(pleasureRemaining);
+      if (pleasureRemaining >= 0) {
+        mRemRow.className = 'bg-emerald-50/70';
+        mRemVal.className = 'py-3 px-3 text-right font-extrabold text-emerald-700 text-sm sm:text-base';
+      } else {
+        mRemRow.className = 'bg-rose-50/80';
+        mRemVal.className = 'py-3 px-3 text-right font-extrabold text-rose-700 text-sm sm:text-base';
+      }
+
+      document.getElementById('m-debts-desc').textContent = `Pozycji zobowiązań w miesiącu: ${debtItems.length}`;
+      document.getElementById('m-debts-total').textContent = formatPLN(debtsSum);
+
+      const activeWishlist = state.wishlist.filter(w => w.status !== 'Odpuszczam');
+      const letGoWishlist = state.wishlist.filter(w => w.status === 'Odpuszczam');
+      const activeWishlistSum = activeWishlist.reduce((s, w) => s + Number(w.price || 0), 0);
+      const letGoWishlistSum = letGoWishlist.reduce((s, w) => s + Number(w.price || 0), 0);
+
+      document.getElementById('m-wishlist-desc').textContent = `Rozważane produkty: ${activeWishlist.length} szt.`;
+      document.getElementById('m-wishlist-total').textContent = formatPLN(activeWishlistSum);
+
+      const transfersTotal = state.history
+        .filter(h => h.kind === 'transfer')
+        .reduce((s, h) => s + Number(h.delta || 0), 0);
+      document.getElementById('dash-transfers-text').textContent = `Przelano między kontami: ${formatPLN(transfersTotal)}`;
+      document.getElementById('dash-saved-wishlist-text').textContent = `Status „Odpuszczam”: ${formatPLN(letGoWishlistSum)}`;
+
+      // 5. Prawa Kolumna Dashboardu: Kontrola Budżetu na Przyjemności
+      document.getElementById('quickMonthlyBudgetInput').value = pleasureLimit;
+      const usedPct = pleasureLimit > 0 ? Math.min(100, Math.round((pleasureUsed / pleasureLimit) * 100)) : 100;
+      document.getElementById('pleasure-progress-label').textContent = `Wykorzystano: ${formatPLN(pleasureUsed)} / ${formatPLN(pleasureLimit)}`;
+      document.getElementById('pleasure-percent-label').textContent = `${usedPct}%`;
+      document.getElementById('pleasure-progress-bar').style.width = `${usedPct}%`;
+
+      if (pleasureRemaining >= 0) {
+        document.getElementById('pleasure-summary-text').innerHTML = `W miesiącu <strong>${monthLabel}</strong> masz jeszcze <strong>${formatPLN(pleasureRemaining)}</strong> bezpiecznego budżetu na przyjemności.`;
+      } else {
+        document.getElementById('pleasure-summary-text').innerHTML = `Uwaga: budżet na przyjemności w <strong>${monthLabel}</strong> został przekroczony o <strong class="text-rose-700">${formatPLN(Math.abs(pleasureRemaining))}</strong>.`;
+      }
+
+      document.getElementById('box-wants-sum').textContent = formatPLN(wantsSum);
+      document.getElementById('box-wants-count').textContent = `${wantsItems.length} poz.`;
+      document.getElementById('box-gifts-sum').textContent = formatPLN(giftsSum);
+      document.getElementById('box-gifts-count').textContent = `${giftsItems.length} poz.`;
+      document.getElementById('box-inst-sum').textContent = formatPLN(instSum);
+      document.getElementById('box-inst-count').textContent = `${monthInst.length} rat`;
+
+      // Lista świeżości kont na Dashboardzie
+      const sortedAccByAge = [...state.accounts].sort((a, b) => getDaysSince(b.lastUpdated) - getDaysSince(a.lastUpdated));
+      document.getElementById('dash-freshness-list').innerHTML = sortedAccByAge.map(acc => {
+        const d = getDaysSince(acc.lastUpdated);
+        const fm = getFreshnessMeta(d);
+        return `
+          <div class="p-2.5 rounded-xl bg-white/80 border border-bloom-200/70 flex items-center justify-between gap-2 ${fm.ringCls}">
+            <div>
+              <p class="text-xs font-bold text-bloom-950">${acc.name}</p>
+              <p class="text-[11px] text-bloom-700">Saldo: <strong>${formatPLN(acc.balance, acc.currency)}</strong></p>
+            </div>
+            <div class="flex items-center gap-2">
+              <span class="text-[10px] px-2 py-0.5 rounded-full border ${fm.badgeCls} flex items-center gap-1">
+                <span class="w-1.5 h-1.5 rounded-full ${fm.dotCls}"></span>
+                <span>${fm.label}</span>
+              </span>
+              <button onclick="openBalanceUpdateModal('${acc.id}')" class="text-[11px] px-2.5 py-1 rounded-lg bg-bloom-100 hover:bg-bloom-200 text-bloom-900 font-semibold">Aktualizuj</button>
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      renderAccountsTab();
+      renderPlanerTab(ym, monthItems, monthInst, pleasureLimit, letGoWishlistSum);
+    }
+
+    // ==================== RENDEROWANIE ZAKŁADKI KONTA ====================
+    function renderAccountsTab() {
+      const grid = document.getElementById('accounts-cards-grid');
+      if (state.accounts.length === 0) {
+        grid.innerHTML = `<div class="col-span-4 py-8 text-center text-xs text-bloom-600">Brak dodanych kont. Kliknij „Dodaj konto”.</div>`;
+      } else {
+        grid.innerHTML = state.accounts.map(acc => {
+          const days = getDaysSince(acc.lastUpdated);
+          const fm = getFreshnessMeta(days);
+          const delta = Number(acc.lastDelta) || 0;
+          const deltaCls = delta > 0 ? 'text-emerald-600' : delta < 0 ? 'text-rose-600' : 'text-bloom-600';
+
+          return `
+            <div class="glass-panel rounded-2xl p-4 flex flex-col justify-between ${fm.ringCls}">
+              <div>
+                <div class="flex items-start justify-between gap-2">
+                  <div>
+                    <span class="text-[10px] font-bold uppercase tracking-wider text-bloom-600">${acc.type}</span>
+                    <h4 class="font-display font-bold text-base text-bloom-950 leading-snug mt-0.5">${acc.name}</h4>
+                  </div>
+                  <span class="text-[10px] px-2 py-0.5 rounded-full border ${fm.badgeCls} flex items-center gap-1 shrink-0">
+                    <span class="w-1.5 h-1.5 rounded-full ${fm.dotCls}"></span>
+                    <span>${fm.label}</span>
+                  </span>
+                </div>
+
+                <div class="mt-3 pt-2.5 border-t border-bloom-100 flex items-baseline justify-between">
+                  <div>
+                    <p class="text-[10px] text-bloom-600 font-semibold">Aktualne saldo</p>
+                    <p class="text-xl font-display font-bold text-bloom-950 mt-0.5">${formatPLN(acc.balance, acc.currency)}</p>
+                    ${acc.currency !== 'PLN' && state.settings.useCurrencies ? `<p class="text-[10px] font-semibold text-bloom-700">≈ ${formatPLN(toPLN(acc.balance, acc.currency), 'PLN')}</p>` : ''}
+                  </div>
+                  <div class="text-right">
+                    <p class="text-[10px] text-bloom-600 font-semibold">Ostatnia różnica</p>
+                    <p class="text-sm font-bold ${deltaCls} mt-0.5">${formatPLN(delta, acc.currency, true)}</p>
+                  </div>
+                </div>
+
+                <p class="text-[11px] text-bloom-700 mt-2.5 bg-bloom-50/70 border border-bloom-200/60 rounded-xl px-2.5 py-1.5 truncate" title="${acc.note || ''}">
+                  <strong>Opis:</strong> ${acc.note || 'Brak opisu zmiany'}
+                </p>
+                <p class="text-[10px] text-bloom-500 mt-1">${fm.longDesc} (${formatDatePL(acc.lastUpdated)})</p>
+              </div>
+
+              <div class="mt-3 pt-2.5 border-t border-bloom-100 flex items-center justify-between gap-1.5">
+                <button onclick="openBalanceUpdateModal('${acc.id}')" class="pink-gradient text-white text-xs font-semibold px-3 py-1.5 rounded-xl flex-1 text-center shadow-sm">
+                  Aktualizuj saldo
+                </button>
+                <button onclick="openAccountModal('${acc.id}')" class="px-2.5 py-1.5 rounded-xl bg-bloom-50 hover:bg-bloom-100 text-bloom-900 text-xs font-semibold">Edytuj</button>
+                <button onclick="deleteAccount('${acc.id}')" class="px-2 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-600 text-xs font-semibold">Usuń</button>
+              </div>
+            </div>
+          `;
+        }).join('');
+      }
+
+      // Selektor filtra historii
+      const filterSel = document.getElementById('historyFilterAccount');
+      const currentFilter = filterSel.value || 'ALL';
+      filterSel.innerHTML = `<option value="ALL">Wszystkie konta (${state.history.length})</option>` +
+        state.accounts.map(a => `<option value="${a.id}" ${currentFilter === a.id ? 'selected' : ''}>${a.name}</option>`).join('');
+
+      const filteredHist = currentFilter === 'ALL'
+        ? state.history
+        : state.history.filter(h => h.accountId === currentFilter);
+
+      const hTbody = document.getElementById('history-table-body');
+      const hCards = document.getElementById('history-cards-body');
+
+      if (filteredHist.length === 0) {
+        const empty = `<div class="py-8 text-center text-bloom-500 text-xs">Brak wpisów w historii zmian sald.</div>`;
+        hTbody.innerHTML = `<tr><td colspan="8">${empty}</td></tr>`;
+        hCards.innerHTML = empty;
+      } else {
+        hTbody.innerHTML = filteredHist.map(h => {
+          const isTr = h.kind === 'transfer';
+          const delta = Number(h.delta) || 0;
+          const deltaColor = isTr ? 'text-purple-700' : delta > 0 ? 'text-emerald-600' : delta < 0 ? 'text-rose-600' : 'text-bloom-800';
+          return `
+            <tr class="hover:bg-white/60">
+              <td class="py-2.5 px-2.5 font-semibold text-bloom-700">${formatDatePL(h.date)}</td>
+              <td class="py-2.5 px-2.5 font-bold text-bloom-950">${h.accountName}</td>
+              <td class="py-2.5 px-2.5">
+                <span class="text-xs px-2 py-0.5 rounded-full font-semibold ${isTr ? 'bg-purple-100 text-purple-800' : 'bg-bloom-100 text-bloom-800'}">
+                  ${isTr ? '⇄ Transfer wewnętrzny' : h.category}
+                </span>
+              </td>
+              <td class="py-2.5 px-2.5 text-right text-bloom-700">${isTr ? '—' : formatPLN(h.oldBalance, h.currency)}</td>
+              <td class="py-2.5 px-2.5 text-right font-semibold text-bloom-950">${isTr ? '—' : formatPLN(h.newBalance, h.currency)}</td>
+              <td class="py-2.5 px-2.5 text-right font-bold ${deltaColor}">${isTr ? `⇄ ${formatPLN(delta, h.currency)}` : formatPLN(delta, h.currency, true)}</td>
+              <td class="py-2.5 px-2.5 text-xs text-bloom-800">${h.note || '—'}</td>
+              <td class="py-2.5 px-2.5 text-right">
+                <button onclick="deleteHistoryItem('${h.id}')" class="px-2 py-1 rounded-lg bg-rose-50 text-rose-600 text-xs font-semibold">Usuń</button>
+              </td>
+            </tr>
+          `;
+        }).join('');
+
+        hCards.innerHTML = filteredHist.map(h => {
+          const isTr = h.kind === 'transfer';
+          const delta = Number(h.delta) || 0;
+          const deltaColor = isTr ? 'text-purple-700' : delta > 0 ? 'text-emerald-600' : delta < 0 ? 'text-rose-600' : 'text-bloom-800';
+          return `
+            <div class="p-3.5 rounded-2xl bg-white/90 border border-bloom-200/80 shadow-sm flex justify-between items-start gap-2 num-tab">
+              <div>
+                <span class="text-[10px] font-bold text-bloom-600">${formatDatePL(h.date)} • ${isTr ? '⇄ Transfer wewnętrzny' : h.category}</span>
+                <h4 class="font-bold text-sm text-bloom-950 mt-0.5">${h.accountName}</h4>
+                <p class="text-xs text-bloom-700 mt-0.5">${h.note || 'Bez opisu'}</p>
+                ${!isTr ? `<p class="text-[10px] text-bloom-500 mt-0.5">Saldo: ${formatPLN(h.oldBalance, h.currency)} ➔ ${formatPLN(h.newBalance, h.currency)}</p>` : ''}
+              </div>
+              <div class="text-right shrink-0 space-y-1">
+                <p class="font-display font-bold text-base ${deltaColor}">${isTr ? `⇄ ${formatPLN(delta, h.currency)}` : formatPLN(delta, h.currency, true)}</p>
+                <button onclick="deleteHistoryItem('${h.id}')" class="text-[11px] px-2 py-0.5 rounded bg-rose-50 text-rose-600 font-semibold">Usuń</button>
+              </div>
+            </div>
+          `;
+        }).join('');
+      }
+    }
+
+    // ==================== RENDEROWANIE ZAKŁADKI PLANER ====================
+    function renderPlanerTab(ym, monthItems, monthInst, pleasureLimit, letGoWishlistSum) {
+      document.getElementById('planer-month-title').textContent = formatMonthLabel(ym);
+
+      // 3A. Plan Miesięczny
+      const typeFilter = document.getElementById('planerTypeFilter').value || 'ALL';
+      const filteredMonthItems = typeFilter === 'ALL'
+        ? monthItems
+        : monthItems.filter(i => i.type === typeFilter);
+
+      const pTbody = document.getElementById('planner-table-body');
+      const pCards = document.getElementById('planner-cards-body');
+
+      const renderPlanStatusBadge = (p) => {
+        if (p.status === 'Zrealizowane') {
+          return `<button onclick="cyclePlannerStatus('${p.id}')" class="inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-emerald-100/90 text-emerald-800 hover:bg-emerald-200 transition">✓ Zrealizowane</button>`;
+        }
+        if (p.status === 'W trakcie') {
+          return `<button onclick="cyclePlannerStatus('${p.id}')" class="inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-amber-100/90 text-amber-800 hover:bg-amber-200 transition">◐ W trakcie</button>`;
+        }
+        return `<button onclick="cyclePlannerStatus('${p.id}')" class="inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-purple-100/90 text-purple-800 hover:bg-purple-200 transition">○ Do realizacji</button>`;
+      };
+
+      if (filteredMonthItems.length === 0) {
+        const empty = `<div class="py-8 text-center text-bloom-500 text-xs">Brak pozycji w Planerze na ${formatMonthLabel(ym)}.</div>`;
+        pTbody.innerHTML = `<tr><td colspan="9">${empty}</td></tr>`;
+        pCards.innerHTML = empty;
+      } else {
+        pTbody.innerHTML = filteredMonthItems.map(p => {
+          const left = Math.max(0, Number(p.totalAmount) - Number(p.paidAmount));
+          const typeCls = p.type === 'Dług' ? 'bg-rose-100 text-rose-800' : p.type === 'Prezent' ? 'bg-amber-100 text-amber-800' : 'bg-bloom-100 text-bloom-800';
+          return `
+            <tr class="hover:bg-white/60 ${p.status === 'Zrealizowane' ? 'opacity-75 bg-emerald-50/30' : ''}">
+              <td class="py-2.5 px-2.5"><span class="text-xs px-2 py-0.5 rounded-lg font-semibold ${typeCls}">${p.type}</span></td>
+              <td class="py-2.5 px-2.5 font-bold text-bloom-950 ${p.status === 'Zrealizowane' ? 'line-through text-bloom-500' : ''}">
+                ${p.title}
+                ${p.note ? `<span class="block text-[11px] font-normal text-bloom-600">${p.note}</span>` : ''}
+              </td>
+              <td class="py-2.5 px-2.5 text-bloom-800 font-medium">${p.person || '—'}</td>
+              <td class="py-2.5 px-2.5 text-center font-semibold">${formatMonthLabel(p.month)}</td>
+              <td class="py-2.5 px-2.5 text-right font-bold text-bloom-950">${formatPLN(p.totalAmount)}</td>
+              <td class="py-2.5 px-2.5 text-right font-semibold text-emerald-700">${formatPLN(p.paidAmount)}</td>
+              <td class="py-2.5 px-2.5 text-right font-bold ${left > 0 ? 'text-rose-600' : 'text-emerald-600'}">${formatPLN(left)}</td>
+              <td class="py-2.5 px-2.5">${renderPlanStatusBadge(p)}</td>
+              <td class="py-2.5 px-2.5 text-right whitespace-nowrap space-x-1">
+                <button onclick="openPartialPayModal('${p.id}')" class="px-2.5 py-1 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-800 text-xs font-semibold">+ Dopłać</button>
+                <button onclick="openPlannerModal('${p.id}')" class="px-2.5 py-1 rounded-lg bg-bloom-50 hover:bg-bloom-100 text-bloom-900 text-xs font-semibold">Edytuj</button>
+                <button onclick="deletePlannerItem('${p.id}')" class="px-2 py-1 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-600 text-xs font-semibold">Usuń</button>
+              </td>
+            </tr>
+          `;
+        }).join('');
+
+        pCards.innerHTML = filteredMonthItems.map(p => {
+          const total = Number(p.totalAmount) || 1;
+          const paid = Number(p.paidAmount) || 0;
+          const pct = Math.min(100, Math.round((paid / total) * 100));
+          const left = Math.max(0, total - paid);
+          return `
+            <div class="p-3.5 rounded-2xl bg-white/90 border border-bloom-200/80 shadow-sm space-y-2 num-tab">
+              <div class="flex items-start justify-between gap-2">
+                <div>
+                  <span class="text-[10px] font-bold text-bloom-600">${p.type} ${p.person ? `• ${p.person}` : ''}</span>
+                  <h4 class="font-bold text-sm text-bloom-950 mt-0.5 ${p.status === 'Zrealizowane' ? 'line-through text-bloom-500' : ''}">${p.title}</h4>
+                  ${p.note ? `<p class="text-xs text-bloom-600">${p.note}</p>` : ''}
+                </div>
+                <div class="text-right">
+                  <p class="font-display font-bold text-base text-bloom-950">${formatPLN(total)}</p>
+                  <p class="text-[10px] font-semibold ${left > 0 ? 'text-rose-600' : 'text-emerald-700'}">Opłacono: ${formatPLN(paid)} (${pct}%)</p>
+                </div>
+              </div>
+              <div class="w-full h-1.5 bg-bloom-100 rounded-full overflow-hidden">
+                <div class="h-full pink-gradient rounded-full" style="width:${pct}%"></div>
+              </div>
+              <div class="flex items-center justify-between pt-1.5 border-t border-bloom-100">
+                ${renderPlanStatusBadge(p)}
+                <div class="flex gap-1.5">
+                  <button onclick="openPartialPayModal('${p.id}')" class="text-xs px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-800 font-semibold">+ Dopłać</button>
+                  <button onclick="openPlannerModal('${p.id}')" class="text-xs px-2.5 py-1 rounded-lg bg-bloom-50 text-bloom-900 font-semibold">Edytuj</button>
+                  <button onclick="deletePlannerItem('${p.id}')" class="text-xs px-2 py-1 rounded-lg bg-rose-50 text-rose-600 font-semibold">Usuń</button>
+                </div>
+              </div>
+            </div>
+          `;
+        }).join('');
+      }
+
+      // Sekcja Rat 0% w wybranym miesiącu (pod tabelą Planera Miesięcznego)
+      const instBox = document.getElementById('month-installments-box');
+      if (monthInst.length === 0) {
+        instBox.innerHTML = `<p class="text-xs text-bloom-600">Brak rat 0% przypadających na ${formatMonthLabel(ym)}.</p>`;
+      } else {
+        instBox.innerHTML = `
+          <div class="flex items-center justify-between mb-2">
+            <h4 class="font-display font-bold text-sm text-bloom-950">Raty 0% przypadające na ${formatMonthLabel(ym)} (${monthInst.length})</h4>
+            <button onclick="setPlanerSubView('installments')" class="text-xs font-semibold text-bloom-700 underline">Wszystkie plany ratalne →</button>
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5 num-tab">
+            ${monthInst.map(r => `
+              <div class="p-3 rounded-xl bg-white/85 border border-bloom-200/80 flex items-center justify-between gap-2">
+                <div>
+                  <span class="text-[10px] font-bold text-bloom-600">Rata ${r.idx + 1}/${r.count} • ${r.vendor}</span>
+                  <p class="font-bold text-xs text-bloom-950 ${r.isPaid ? 'line-through text-bloom-500' : ''}">${r.title}</p>
+                </div>
+                <div class="text-right flex items-center gap-2">
+                  <span class="font-display font-bold text-sm text-bloom-950">${formatPLN(r.amount)}</span>
+                  <button onclick="toggleInstallmentPaid('${r.instId}', ${r.idx})" class="text-[11px] font-semibold px-2.5 py-1 rounded-lg ${r.isPaid ? 'bg-emerald-100 text-emerald-800' : 'bg-bloom-100 text-bloom-900'}">
+                    ${r.isPaid ? '✓ Opłacona' : 'Opłać'}
+                  </button>
+                </div>
+              </div>
+            `).join('')}
+          </div>
+        `;
+      }
+
+      // 3B. Wishlista
+      document.getElementById('wishlist-saved-pill').textContent = `Zaoszczędzono dzięki „Odpuszczam”: ${formatPLN(letGoWishlistSum)}`;
+      const wlGrid = document.getElementById('wishlist-grid');
+      const statuses = ['Świeża myśl', 'Rozważam', 'Przemyślane', 'Odpuszczam'];
+
+      if (state.wishlist.length === 0) {
+        wlGrid.innerHTML = `<div class="col-span-2 py-8 text-center text-xs text-bloom-500">Twoja Wishlista jest pusta.</div>`;
+      } else {
+        wlGrid.innerHTML = state.wishlist.map(w => {
+          const pctBudget = pleasureLimit > 0 ? Math.round((w.price / pleasureLimit) * 100) : 0;
+          const goalObj = state.goals.find(g => g.id === w.goalId) || state.goals[0];
+          const pctGoal = goalObj && goalObj.targetAmount > 0 ? Math.round((w.price / goalObj.targetAmount) * 100) : null;
+
+          return `
+            <div class="p-4 rounded-2xl bg-white/90 border border-bloom-200/80 shadow-sm flex flex-col justify-between gap-3 ${w.status === 'Odpuszczam' ? 'opacity-70 bg-slate-50/70' : ''}">
+              <div>
+                <div class="flex items-start justify-between gap-2">
+                  <div>
+                    <span class="text-[10px] font-bold uppercase text-bloom-600">${w.category || 'Wishlista'} • Dodano ${formatDatePL(w.addedDate)}</span>
+                    <h4 class="font-display font-bold text-base text-bloom-950 mt-0.5 ${w.status === 'Odpuszczam' ? 'line-through text-slate-500' : ''}">${w.title}</h4>
+                  </div>
+                  <span class="font-display font-bold text-lg text-bloom-950 shrink-0">${formatPLN(w.price)}</span>
+                </div>
+
+                ${w.note ? `<p class="text-xs text-bloom-700 mt-1">${w.note}</p>` : ''}
+
+                <!-- Koszt alternatywny -->
+                <div class="mt-2.5 p-2.5 rounded-xl pink-soft-gradient border border-bloom-200/70 text-xs text-bloom-950">
+                  <strong>Koszt alternatywny:</strong> ten zakup to <strong>${pctBudget}%</strong> miesięcznego budżetu na przyjemności${pctGoal !== null ? ` lub <strong>${pctGoal}%</strong> celu <em>„${goalObj.title}”</em>` : ''}.
+                </div>
+
+                <!-- Ręczny wybór statusu -->
+                <div class="mt-3">
+                  <span class="text-[10px] font-bold uppercase text-bloom-600 block mb-1">Status decyzji (kliknij, aby zmienić ręcznie):</span>
+                  <div class="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
+                    ${statuses.map(st => {
+                      const active = w.status === st;
+                      return `<button onclick="changeWishlistStatus('${w.id}', '${st}')" class="px-2 py-1 rounded-lg text-[11px] font-semibold border transition ${active ? 'seg-active font-bold' : 'bg-bloom-50/50 border-bloom-200/60 text-bloom-700 hover:bg-white'}">${st}</button>`;
+                    }).join('')}
+                  </div>
+                </div>
+              </div>
+
+              <div class="pt-2.5 border-t border-bloom-100 flex flex-wrap items-center justify-between gap-2">
+                <div class="flex gap-1.5">
+                  ${w.url ? `<a href="${w.url}" target="_blank" rel="noopener noreferrer" class="text-xs px-2.5 py-1 rounded-lg bg-bloom-100/80 hover:bg-bloom-200 text-bloom-900 font-semibold">Sklep ↗</a>` : ''}
+                  ${w.status !== 'Odpuszczam' ? `<button onclick="moveWishlistItemToMonth('${w.id}')" class="pink-gradient text-white text-xs px-3 py-1 rounded-lg font-semibold shadow-sm">Zaplanuj w ${formatMonthLabel(ym)}</button>` : ''}
+                </div>
+                <div class="flex gap-1.5">
+                  <button onclick="openWishlistModal('${w.id}')" class="text-xs px-2.5 py-1 rounded-lg bg-bloom-50 text-bloom-900 font-semibold">Edytuj</button>
+                  <button onclick="deleteWishlistItem('${w.id}')" class="text-xs px-2 py-1 rounded-lg bg-rose-50 text-rose-600 font-semibold">Usuń</button>
+                </div>
+              </div>
+            </div>
+          `;
+        }).join('');
+      }
+
+      // 3C. Raty 0%
+      const instListEl = document.getElementById('installments-list');
+      if (state.installments.length === 0) {
+        instListEl.innerHTML = `<div class="py-8 text-center text-xs text-bloom-500">Brak planów ratalnych 0%.</div>`;
+      } else {
+        instListEl.innerHTML = state.installments.map(inst => {
+          const count = Number(inst.count) || 1;
+          const single = Number(inst.totalAmount) / count;
+          const paidArr = inst.paidMonths || [];
+          const paidSum = paidArr.length * single;
+          const leftSum = Math.max(0, Number(inst.totalAmount) - paidSum);
+
+          let tilesHtml = '';
+          for (let i = 0; i < count; i++) {
+            const tileYM = shiftYM(inst.startMonth, i);
+            const isPaid = paidArr.includes(i);
+            const isSelectedM = tileYM === ym;
+            tilesHtml += `
+              <button onclick="toggleInstallmentPaid('${inst.id}', ${i})" class="p-2.5 rounded-xl border text-left transition ${
+                isPaid
+                  ? 'bg-emerald-50/90 border-emerald-300 text-emerald-900'
+                  : isSelectedM
+                    ? 'bg-white ring-2 ring-bloom-400 border-bloom-400 text-bloom-950'
+                    : 'bg-white/80 border-bloom-200/80 text-bloom-800 hover:bg-white'
+              }">
+                <div class="flex items-center justify-between text-[10px] font-bold">
+                  <span>Rata ${i + 1}/${count}</span>
+                  <span>${isPaid ? '✓ Opłacona' : '○ Do spłaty'}</span>
+                </div>
+                <p class="font-display font-bold text-sm mt-1">${formatPLN(single)}</p>
+                <p class="text-[10px] text-bloom-600">${formatMonthLabel(tileYM)}</p>
+              </button>
+            `;
+          }
+
+          return `
+            <div class="p-4 rounded-2xl bg-white/90 border border-bloom-200/80 shadow-sm space-y-3">
+              <div class="flex flex-wrap items-start justify-between gap-2">
+                <div>
+                  <span class="text-[10px] font-bold uppercase text-bloom-600">${inst.vendor || 'Raty 0%'} • ${count} rat po ${formatPLN(single)}</span>
+                  <h4 class="font-display font-bold text-base text-bloom-950">${inst.title}</h4>
+                </div>
+                <div class="text-right">
+                  <p class="font-display font-bold text-base text-bloom-950">Razem: ${formatPLN(inst.totalAmount)}</p>
+                  <p class="text-xs font-semibold ${leftSum === 0 ? 'text-emerald-700' : 'text-rose-600'}">Pozostało: ${formatPLN(leftSum)} (${paidArr.length}/${count} rat)</p>
+                </div>
+              </div>
+              <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2">
+                ${tilesHtml}
+              </div>
+              <div class="pt-2 border-t border-bloom-100 flex justify-end gap-2">
+                <button onclick="openInstallmentModal('${inst.id}')" class="text-xs px-3 py-1 rounded-lg bg-bloom-50 text-bloom-900 font-semibold">Edytuj</button>
+                <button onclick="deleteInstallment('${inst.id}')" class="text-xs px-3 py-1 rounded-lg bg-rose-50 text-rose-600 font-semibold">Usuń</button>
+              </div>
+            </div>
+          `;
+        }).join('');
+      }
+
+      // 3D. Cele Oszczędnościowe
+      const goalsGrid = document.getElementById('goals-grid');
+      if (state.goals.length === 0) {
+        goalsGrid.innerHTML = `<div class="col-span-2 py-8 text-center text-xs text-bloom-500">Brak zdefiniowanych celów oszczędnościowych.</div>`;
+      } else {
+        goalsGrid.innerHTML = state.goals.map(g => {
+          const target = Number(g.targetAmount) || 1;
+          const saved = Number(g.savedAmount) || 0;
+          const pct = Math.min(100, Math.round((saved / target) * 100));
+          const missing = Math.max(0, target - saved);
+          const pinnedWishlist = state.wishlist.filter(w => w.goalId === g.id && w.status !== 'Odpuszczam');
+
+          return `
+            <div class="p-4 rounded-2xl bg-white/90 border border-bloom-200/80 shadow-sm flex flex-col justify-between space-y-3">
+              <div class="space-y-2.5">
+                <div class="flex items-start justify-between gap-2">
+                  <div>
+                    <span class="text-[10px] font-bold uppercase text-bloom-600">Cel oszczędnościowy</span>
+                    <h4 class="font-display font-bold text-base text-bloom-950">${g.title}</h4>
+                    ${g.note ? `<p class="text-xs text-bloom-600">${g.note}</p>` : ''}
+                  </div>
+                  <span class="text-xs font-extrabold px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800">${pct}%</span>
+                </div>
+
+                <div class="w-full h-3 bg-bloom-100/80 rounded-full overflow-hidden p-0.5 border border-bloom-200/50">
+                  <div class="h-full pink-gradient rounded-full transition-all duration-500" style="width:${pct}%"></div>
+                </div>
+
+                <div class="flex justify-between text-xs font-semibold text-bloom-800">
+                  <span>Odłożono: <strong class="text-emerald-700">${formatPLN(saved)}</strong></span>
+                  <span>Cel: <strong>${formatPLN(target)}</strong> (brakuje ${formatPLN(missing)})</span>
+                </div>
+
+                ${pinnedWishlist.length > 0 ? `
+                  <div class="p-2.5 rounded-xl bg-bloom-50/70 border border-bloom-200/60 text-[11px] text-bloom-900">
+                    <p class="font-bold mb-1">Powiązane pozycje na Wishliście (${pinnedWishlist.length}):</p>
+                    ${pinnedWishlist.map(pw => `<div class="flex justify-between"><span>• ${pw.title}</span><span class="font-semibold">${formatPLN(pw.price)} (${Math.round((pw.price / target) * 100)}% celu)</span></div>`).join('')}
+                  </div>
+                ` : ''}
+              </div>
+
+              <div class="pt-2.5 border-t border-bloom-100 flex items-center justify-between gap-2">
+                <button onclick="quickAddGoalSavings('${g.id}', 200)" class="pink-gradient text-white text-xs font-semibold px-3 py-1.5 rounded-xl shadow-sm">+200 zł do celu</button>
+                <div class="flex gap-1.5">
+                  <button onclick="openGoalModal('${g.id}')" class="text-xs px-2.5 py-1 rounded-lg bg-bloom-50 text-bloom-900 font-semibold">Edytuj kwotę</button>
+                  <button onclick="deleteGoal('${g.id}')" class="text-xs px-2 py-1 rounded-lg bg-rose-50 text-rose-600 font-semibold">Usuń</button>
+                </div>
+              </div>
+            </div>
+          `;
+        }).join('');
+      }
+    }
+
+    // ==================== OBSŁUGA MODALI I AKCJI ====================
+    function openBalanceUpdateModal(preselectAccountId = null) {
+      if (state.accounts.length === 0) {
+        showToast('Najpierw dodaj konto');
+        return;
+      }
+      const sel = document.getElementById('bu-account-id');
+      sel.innerHTML = state.accounts.map(a => `<option value="${a.id}">${a.name} (${formatPLN(a.balance, a.currency)})</option>`).join('');
+      if (preselectAccountId) sel.value = preselectAccountId;
+
+      document.getElementById('bu-date').value = daysAgoISO(0);
+      document.getElementById('bu-note').value = '';
+      onBalanceUpdateAccountChange();
+      document.getElementById('balanceUpdateModal').classList.remove('hidden');
+    }
+
+    function onBalanceUpdateAccountChange() {
+      const accId = document.getElementById('bu-account-id').value;
+      const acc = state.accounts.find(a => a.id === accId);
+      if (!acc) return;
+      document.getElementById('bu-old-balance-label').textContent = formatPLN(acc.balance, acc.currency);
+      document.getElementById('bu-new-balance').value = acc.balance;
+      recalcBalanceDeltaPreview();
+    }
+
+    function recalcBalanceDeltaPreview() {
+      const accId = document.getElementById('bu-account-id').value;
+      const acc = state.accounts.find(a => a.id === accId);
+      if (!acc) return;
+      const newBal = parseFloat(document.getElementById('bu-new-balance').value);
+      const deltaLabel = document.getElementById('bu-delta-label');
+      if (isNaN(newBal)) {
+        deltaLabel.textContent = '—';
+        return;
+      }
+      const delta = Math.round((newBal - acc.balance) * 100) / 100;
+      deltaLabel.textContent = formatPLN(delta, acc.currency, true);
+      deltaLabel.className = `font-display font-bold text-base ${delta > 0 ? 'text-emerald-600' : delta < 0 ? 'text-rose-600' : 'text-bloom-950'}`;
+    }
+
+    function saveBalanceUpdate(e) {
+      e.preventDefault();
+      const accId = document.getElementById('bu-account-id').value;
+      const acc = state.accounts.find(a => a.id === accId);
+      if (!acc) return;
+
+      const oldBal = Number(acc.balance) || 0;
+      const newBal = Number(document.getElementById('bu-new-balance').value) || 0;
+      const delta = Math.round((newBal - oldBal) * 100) / 100;
+      const date = document.getElementById('bu-date').value || daysAgoISO(0);
+      const category = document.getElementById('bu-category').value;
+      const note = document.getElementById('bu-note').value.trim() || category;
+
+      acc.prevBalance = oldBal;
+      acc.balance = newBal;
+      acc.lastDelta = delta;
+      acc.lastUpdated = date;
+      acc.note = note;
+
+      state.history.unshift({
+        id: 'h_' + Date.now(),
+        kind: 'update',
+        accountId: acc.id,
+        accountName: acc.name,
+        currency: acc.currency,
+        oldBalance: oldBal,
+        newBalance: newBal,
+        delta,
+        category,
+        note,
+        date
+      });
+
+      saveState();
+      closeModalById('balanceUpdateModal');
+      renderAll();
+      showToast('Zaktualizowano saldo i zapisano różnicę');
+    }
+
+    function openTransferModal() {
+      if (state.accounts.length < 2) {
+        showToast('Dodaj co najmniej 2 konta, aby wykonać przelew własny');
+        return;
+      }
+      const opts = state.accounts.map(a => `<option value="${a.id}">${a.name} (${formatPLN(a.balance, a.currency)})</option>`).join('');
+      document.getElementById('tr-from').innerHTML = opts;
+      document.getElementById('tr-to').innerHTML = opts;
+      document.getElementById('tr-to').value = state.accounts[1].id;
+      document.getElementById('tr-amount').value = '';
+      document.getElementById('tr-date').value = daysAgoISO(0);
+      document.getElementById('tr-note').value = '';
+      document.getElementById('transferModal').classList.remove('hidden');
+    }
+
+    function saveInternalTransfer(e) {
+      e.preventDefault();
+      const fromId = document.getElementById('tr-from').value;
+      const toId = document.getElementById('tr-to').value;
+      const amount = Number(document.getElementById('tr-amount').value) || 0;
+      const date = document.getElementById('tr-date').value || daysAgoISO(0);
+      const note = document.getElementById('tr-note').value.trim() || 'Przelew własny między kontami';
+
+      if (fromId === toId) {
+        showToast('Wybierz dwa różne konta');
+        return;
+      }
+      const fromAcc = state.accounts.find(a => a.id === fromId);
+      const toAcc = state.accounts.find(a => a.id === toId);
+      if (!fromAcc || !toAcc) return;
+
+      fromAcc.prevBalance = fromAcc.balance;
+      fromAcc.balance = Math.round((fromAcc.balance - amount) * 100) / 100;
+      fromAcc.lastUpdated = date;
+      fromAcc.note = `Transfer własny do: ${toAcc.name}`;
+
+      let addAmount = amount;
+      if (fromAcc.currency !== toAcc.currency && state.settings.useCurrencies) {
+        const plnVal = toPLN(amount, fromAcc.currency);
+        const targetRate = toAcc.currency === 'PLN' ? 1 : (Number(state.settings.rates[toAcc.currency]) || 1);
+        addAmount = Math.round((plnVal / targetRate) * 100) / 100;
+      }
+
+      toAcc.prevBalance = toAcc.balance;
+      toAcc.balance = Math.round((toAcc.balance + addAmount) * 100) / 100;
+      toAcc.lastUpdated = date;
+      toAcc.note = `Transfer własny z: ${fromAcc.name}`;
+
+      state.history.unshift({
+        id: 'h_' + Date.now(),
+        kind: 'transfer',
+        accountId: fromAcc.id,
+        accountName: `${fromAcc.name} ➔ ${toAcc.name}`,
+        currency: fromAcc.currency,
+        oldBalance: fromAcc.prevBalance,
+        newBalance: fromAcc.balance,
+        delta: amount,
+        category: 'Transfer wewnętrzny',
+        note,
+        date
+      });
+
+      saveState();
+      closeModalById('transferModal');
+      renderAll();
+      showToast('Wykonano neutralny transfer wewnętrzny');
+    }
+
+    function openAccountModal(editId = null) {
+      const ex = editId ? state.accounts.find(a => a.id === editId) : null;
+      document.getElementById('accountModalTitle').textContent = ex ? 'Edytuj konto' : 'Dodaj nowe konto';
+      document.getElementById('acc-id').value = ex ? ex.id : '';
+      document.getElementById('acc-name').value = ex ? ex.name : '';
+      document.getElementById('acc-type').value = ex ? ex.type : 'Konto osobiste';
+      document.getElementById('acc-currency').value = ex ? ex.currency : 'PLN';
+      document.getElementById('acc-balance').value = ex ? ex.balance : '';
+      document.getElementById('acc-date').value = ex ? ex.lastUpdated : daysAgoISO(0);
+      document.getElementById('acc-note').value = ex ? (ex.note || '') : '';
+      document.getElementById('accountModal').classList.remove('hidden');
+    }
+
+    function saveAccountForm(e) {
+      e.preventDefault();
+      const id = document.getElementById('acc-id').value;
+      const name = document.getElementById('acc-name').value.trim();
+      const type = document.getElementById('acc-type').value;
+      const currency = document.getElementById('acc-currency').value;
+      const balance = Number(document.getElementById('acc-balance').value) || 0;
+      const lastUpdated = document.getElementById('acc-date').value || daysAgoISO(0);
+      const note = document.getElementById('acc-note').value.trim();
+
+      if (id) {
+        const acc = state.accounts.find(a => a.id === id);
+        if (acc) {
+          acc.name = name;
+          acc.type = type;
+          acc.currency = currency;
+          acc.balance = balance;
+          acc.lastUpdated = lastUpdated;
+          acc.note = note;
+        }
+      } else {
+        state.accounts.push({
+          id: 'acc_' + Date.now(),
+          name,
+          type,
+          currency,
+          balance,
+          prevBalance: balance,
+          lastDelta: 0,
+          lastUpdated,
+          note: note || 'Utworzono konto'
+        });
+      }
+
+      saveState();
+      closeModalById('accountModal');
+      renderAll();
+      showToast('Zapisano konto');
+    }
+
+    function deleteAccount(id) {
+      openConfirmModal('Usunąć wybrane konto?', 'Konto zniknie z listy sald, natomiast dotychczasowa historia zmian pozostanie zachowana.', () => {
+        state.accounts = state.accounts.filter(a => a.id !== id);
+        saveState();
+        renderAll();
+        showToast('Konto zostało usunięte');
+      });
+    }
+
+    function deleteHistoryItem(id) {
+      state.history = state.history.filter(h => h.id !== id);
+      saveState();
+      renderAll();
+      showToast('Usunięto wpis z historii');
+    }
+
+    // Planer Miesięczny
+    function openPlannerModal(editId = null) {
+      const ex = editId ? state.plannerItems.find(p => p.id === editId) : null;
+      document.getElementById('plannerModalTitle').textContent = ex ? 'Edytuj pozycję w Planerze' : 'Dodaj pozycję do Planera';
+      document.getElementById('pl-id').value = ex ? ex.id : '';
+      document.getElementById('pl-type').value = ex ? ex.type : 'Chcę kupić';
+      document.getElementById('pl-month').value = ex ? ex.month : state.selectedMonth;
+      document.getElementById('pl-title').value = ex ? ex.title : '';
+      document.getElementById('pl-person').value = ex ? (ex.person || '') : '';
+      document.getElementById('pl-total').value = ex ? ex.totalAmount : '';
+      document.getElementById('pl-paid').value = ex ? ex.paidAmount : 0;
+      document.getElementById('pl-note').value = ex ? (ex.note || '') : '';
+      document.getElementById('plannerModal').classList.remove('hidden');
+    }
+
+    function savePlannerForm(e) {
+      e.preventDefault();
+      const id = document.getElementById('pl-id').value;
+      const type = document.getElementById('pl-type').value;
+      const month = document.getElementById('pl-month').value || state.selectedMonth;
+      const title = document.getElementById('pl-title').value.trim();
+      const person = document.getElementById('pl-person').value.trim();
+      const totalAmount = Number(document.getElementById('pl-total').value) || 0;
+      const paidAmount = Math.min(totalAmount, Number(document.getElementById('pl-paid').value) || 0);
+      const note = document.getElementById('pl-note').value.trim();
+
+      const status = paidAmount >= totalAmount ? 'Zrealizowane' : paidAmount > 0 ? 'W trakcie' : 'Do realizacji';
+
+      if (id) {
+        const item = state.plannerItems.find(p => p.id === id);
+        if (item) {
+          item.type = type;
+          item.month = month;
+          item.title = title;
+          item.person = person;
+          item.totalAmount = totalAmount;
+          item.paidAmount = paidAmount;
+          item.status = status;
+          item.note = note;
+        }
+      } else {
+        state.plannerItems.push({
+          id: 'pl_' + Date.now(),
+          month,
+          type,
+          title,
+          person,
+          totalAmount,
+          paidAmount,
+          status,
+          note
+        });
+      }
+
+      state.selectedMonth = month;
+      document.getElementById('globalMonth').value = month;
+      saveState();
+      closeModalById('plannerModal');
+      renderAll();
+      showToast('Zapisano pozycję w Planerze');
+    }
+
+    function cyclePlannerStatus(id) {
+      const p = state.plannerItems.find(x => x.id === id);
+      if (!p) return;
+      if (p.status === 'Do realizacji') {
+        p.status = 'Zrealizowane';
+        p.paidAmount = p.totalAmount;
+      } else if (p.status === 'W trakcie') {
+        p.status = 'Zrealizowane';
+        p.paidAmount = p.totalAmount;
+      } else {
+        p.status = 'Do realizacji';
+        p.paidAmount = 0;
+      }
+      saveState();
+      renderAll();
+    }
+
+    function openPartialPayModal(id) {
+      const p = state.plannerItems.find(x => x.id === id);
+      if (!p) return;
+      const left = Math.max(0, Number(p.totalAmount) - Number(p.paidAmount));
+      document.getElementById('pp-id').value = p.id;
+      document.getElementById('partialPayTitle').textContent = `Dopłata: ${p.title}`;
+      document.getElementById('pp-info').textContent = `Wpłacono dotychczas: ${formatPLN(p.paidAmount)} z ${formatPLN(p.totalAmount)} (pozostało: ${formatPLN(left)})`;
+      document.getElementById('pp-amount').value = left;
+      document.getElementById('partialPayModal').classList.remove('hidden');
+    }
+
+    function savePartialPay(e) {
+      e.preventDefault();
+      const id = document.getElementById('pp-id').value;
+      const p = state.plannerItems.find(x => x.id === id);
+      if (!p) return;
+      const add = Number(document.getElementById('pp-amount').value) || 0;
+      p.paidAmount = Math.min(p.totalAmount, Math.max(0, Math.round((p.paidAmount + add) * 100) / 100));
+      p.status = p.paidAmount >= p.totalAmount ? 'Zrealizowane' : p.paidAmount > 0 ? 'W trakcie' : 'Do realizacji';
+      saveState();
+      closeModalById('partialPayModal');
+      renderAll();
+      showToast('Zapisano częściową wpłatę');
+    }
+
+    function deletePlannerItem(id) {
+      state.plannerItems = state.plannerItems.filter(p => p.id !== id);
+      saveState();
+      renderAll();
+      showToast('Usunięto pozycję z Planera');
+    }
+
+    // Wishlista
+    function openWishlistModal(editId = null) {
+      const ex = editId ? state.wishlist.find(w => w.id === editId) : null;
+      document.getElementById('wishlistModalTitle').textContent = ex ? 'Edytuj pozycję Wishlisty' : 'Dodaj na Wishlistę';
+      document.getElementById('wl-id').value = ex ? ex.id : '';
+      document.getElementById('wl-title').value = ex ? ex.title : '';
+      document.getElementById('wl-price').value = ex ? ex.price : '';
+      document.getElementById('wl-category').value = ex ? ex.category : 'Moda i Uroda';
+      document.getElementById('wl-status').value = ex ? ex.status : 'Świeża myśl';
+      document.getElementById('wl-url').value = ex ? (ex.url || '') : '';
+      document.getElementById('wl-note').value = ex ? (ex.note || '') : '';
+
+      const goalSel = document.getElementById('wl-goal-id');
+      goalSel.innerHTML = state.goals.map(g => `<option value="${g.id}" ${ex?.goalId === g.id ? 'selected' : ''}>${g.title} (${formatPLN(g.targetAmount)})</option>`).join('');
+      document.getElementById('wishlistModal').classList.remove('hidden');
+    }
+
+    function saveWishlistForm(e) {
+      e.preventDefault();
+      const id = document.getElementById('wl-id').value;
+      const obj = {
+        id: id || 'wl_' + Date.now(),
+        title: document.getElementById('wl-title').value.trim(),
+        price: Number(document.getElementById('wl-price').value) || 0,
+        category: document.getElementById('wl-category').value.trim(),
+        status: document.getElementById('wl-status').value,
+        goalId: document.getElementById('wl-goal-id').value,
+        url: document.getElementById('wl-url').value.trim(),
+        addedDate: id ? (state.wishlist.find(x => x.id === id)?.addedDate || daysAgoISO(0)) : daysAgoISO(0),
+        note: document.getElementById('wl-note').value.trim()
+      };
+
+      if (id) {
+        const idx = state.wishlist.findIndex(x => x.id === id);
+        if (idx > -1) state.wishlist[idx] = obj;
+      } else {
+        state.wishlist.unshift(obj);
+      }
+
+      saveState();
+      closeModalById('wishlistModal');
+      setPlanerSubView('wishlist');
+      renderAll();
+      showToast('Zapisano na Wishliście');
+    }
+
+    function changeWishlistStatus(id, newStatus) {
+      const w = state.wishlist.find(x => x.id === id);
+      if (!w) return;
+      w.status = newStatus;
+      saveState();
+      renderAll();
+      showToast(`Status zmieniony na: ${newStatus}`);
+    }
+
+    function moveWishlistItemToMonth(id) {
+      const w = state.wishlist.find(x => x.id === id);
+      if (!w) return;
+      state.plannerItems.push({
+        id: 'pl_' + Date.now(),
+        month: state.selectedMonth,
+        type: 'Chcę kupić',
+        title: w.title,
+        person: '',
+        totalAmount: w.price,
+        paidAmount: 0,
+        status: 'Do realizacji',
+        note: w.note || 'Przeniesione z Wishlisty'
+      });
+      state.wishlist = state.wishlist.filter(x => x.id !== id);
+      saveState();
+      setPlanerSubView('month');
+      renderAll();
+      showToast(`Zaplanowano w miesiącu: ${formatMonthLabel(state.selectedMonth)}`);
+    }
+
+    function deleteWishlistItem(id) {
+      state.wishlist = state.wishlist.filter(x => x.id !== id);
+      saveState();
+      renderAll();
+      showToast('Usunięto z Wishlisty');
+    }
+
+    // Raty 0%
+    function openInstallmentModal(editId = null) {
+      const ex = editId ? state.installments.find(i => i.id === editId) : null;
+      document.getElementById('installmentModalTitle').textContent = ex ? 'Edytuj plan ratalny 0%' : 'Dodaj plan ratalny 0%';
+      document.getElementById('inst-id').value = ex ? ex.id : '';
+      document.getElementById('inst-title').value = ex ? ex.title : '';
+      document.getElementById('inst-vendor').value = ex ? (ex.vendor || '') : '';
+      document.getElementById('inst-total').value = ex ? ex.totalAmount : '';
+      document.getElementById('inst-count').value = ex ? ex.count : 3;
+      document.getElementById('inst-start').value = ex ? ex.startMonth : state.selectedMonth;
+      document.getElementById('installmentModal').classList.remove('hidden');
+    }
+
+    function saveInstallmentForm(e) {
+      e.preventDefault();
+      const id = document.getElementById('inst-id').value;
+      const title = document.getElementById('inst-title').value.trim();
+      const vendor = document.getElementById('inst-vendor').value.trim() || 'Raty 0%';
+      const totalAmount = Number(document.getElementById('inst-total').value) || 0;
+      const count = Number(document.getElementById('inst-count').value) || 3;
+      const startMonth = document.getElementById('inst-start').value || state.selectedMonth;
+
+      if (id) {
+        const inst = state.installments.find(x => x.id === id);
+        if (inst) {
+          inst.title = title;
+          inst.vendor = vendor;
+          inst.totalAmount = totalAmount;
+          inst.count = count;
+          inst.startMonth = startMonth;
+          inst.paidMonths = (inst.paidMonths || []).filter(i => i < count);
+        }
+      } else {
+        state.installments.push({
+          id: 'inst_' + Date.now(),
+          title,
+          vendor,
+          totalAmount,
+          count,
+          startMonth,
+          paidMonths: []
+        });
+      }
+
+      saveState();
+      closeModalById('installmentModal');
+      setPlanerSubView('installments');
+      renderAll();
+      showToast('Zapisano harmonogram rat 0%');
+    }
+
+    function toggleInstallmentPaid(instId, monthIdx) {
+      const inst = state.installments.find(x => x.id === instId);
+      if (!inst) return;
+      if (!Array.isArray(inst.paidMonths)) inst.paidMonths = [];
+      if (inst.paidMonths.includes(monthIdx)) {
+        inst.paidMonths = inst.paidMonths.filter(x => x !== monthIdx);
+      } else {
+        inst.paidMonths.push(monthIdx);
+      }
+      saveState();
+      renderAll();
+      showToast('Zaktualizowano status raty 0%');
+    }
+
+    function deleteInstallment(id) {
+      state.installments = state.installments.filter(x => x.id !== id);
+      saveState();
+      renderAll();
+      showToast('Usunięto plan ratalny');
+    }
+
+    // Cele oszczędnościowe
+    function openGoalModal(editId = null) {
+      const ex = editId ? state.goals.find(g => g.id === editId) : null;
+      document.getElementById('goalModalTitle').textContent = ex ? 'Edytuj cel oszczędnościowy' : 'Nowy cel oszczędnościowy';
+      document.getElementById('gl-id').value = ex ? ex.id : '';
+      document.getElementById('gl-title').value = ex ? ex.title : '';
+      document.getElementById('gl-target').value = ex ? ex.targetAmount : '';
+      document.getElementById('gl-saved').value = ex ? ex.savedAmount : 0;
+      document.getElementById('gl-note').value = ex ? (ex.note || '') : '';
+      document.getElementById('goalModal').classList.remove('hidden');
+    }
+
+    function saveGoalForm(e) {
+      e.preventDefault();
+      const id = document.getElementById('gl-id').value;
+      const title = document.getElementById('gl-title').value.trim();
+      const targetAmount = Number(document.getElementById('gl-target').value) || 0;
+      const savedAmount = Number(document.getElementById('gl-saved').value) || 0;
+      const note = document.getElementById('gl-note').value.trim();
+
+      if (id) {
+        const g = state.goals.find(x => x.id === id);
+        if (g) {
+          g.title = title;
+          g.targetAmount = targetAmount;
+          g.savedAmount = savedAmount;
+          g.note = note;
+        }
+      } else {
+        state.goals.push({
+          id: 'gl_' + Date.now(),
+          title,
+          targetAmount,
+          savedAmount,
+          note
+        });
+      }
+
+      saveState();
+      closeModalById('goalModal');
+      setPlanerSubView('goals');
+      renderAll();
+      showToast('Zapisano cel oszczędnościowy');
+    }
+
+    function quickAddGoalSavings(id, addVal) {
+      const g = state.goals.find(x => x.id === id);
+      if (!g) return;
+      g.savedAmount = Math.min(g.targetAmount, (Number(g.savedAmount) || 0) + addVal);
+      saveState();
+      renderAll();
+      showToast(`Dodano +${addVal} zł do celu „${g.title}”`);
+    }
+
+    function deleteGoal(id) {
+      state.goals = state.goals.filter(x => x.id !== id);
+      saveState();
+      renderAll();
+      showToast('Usunięto cel oszczędnościowy');
+    }
+
+    // ==================== USTAWIENIA, EXCEL, CSV, BACKUP ====================
+    function updateMonthlyBudgetFromDashboard(val) {
+      const num = Number(val) || 0;
+      if (!state.settings.monthlyBudgets) state.settings.monthlyBudgets = {};
+      state.settings.monthlyBudgets[state.selectedMonth] = num;
+      saveState();
+      renderAll();
+      showToast(`Limit na ${formatMonthLabel(state.selectedMonth)}: ${formatPLN(num)}`);
+    }
+
+    function populateSettingsForm() {
+      document.getElementById('set-default-pleasure').value = state.settings.defaultPleasureBudget || 1200;
+      document.getElementById('set-hide-on-start').checked = Boolean(state.settings.hideBalancesOnStart);
+      document.getElementById('set-use-currencies').checked = Boolean(state.settings.useCurrencies);
+      document.getElementById('set-rate-eur').value = state.settings.rates?.EUR || 4.30;
+      document.getElementById('set-rate-usd').value = state.settings.rates?.USD || 3.98;
+      document.getElementById('set-rate-gbp').value = state.settings.rates?.GBP || 5.05;
+    }
+
+    function saveSettingsForm() {
+      state.settings.defaultPleasureBudget = Number(document.getElementById('set-default-pleasure').value) || 1200;
+      state.settings.hideBalancesOnStart = document.getElementById('set-hide-on-start').checked;
+      state.settings.useCurrencies = document.getElementById('set-use-currencies').checked;
+      state.settings.rates = {
+        EUR: Number(document.getElementById('set-rate-eur').value) || 4.30,
+        USD: Number(document.getElementById('set-rate-usd').value) || 3.98,
+        GBP: Number(document.getElementById('set-rate-gbp').value) || 5.05
+      };
+      saveState();
+      renderAll();
+      showToast('Zapisano ustawienia aplikacji');
+    }
+
+    function buildExcelWorkbook() {
+      const wb = XLSX.utils.book_new();
+
+      const wsAccounts = XLSX.utils.json_to_sheet(state.accounts.map(a => ({
+        'Nazwa konta': a.name,
+        'Typ': a.type,
+        'Waluta': a.currency,
+        'Saldo': a.balance,
+        'Ostatnia różnica': a.lastDelta,
+        'Ostatnia aktualizacja': a.lastUpdated,
+        'Notatka': a.note
+      })));
+
+      const wsHistory = XLSX.utils.json_to_sheet(state.history.map(h => ({
+        'Data': h.date,
+        'Konto': h.accountName,
+        'Kategoria': h.category,
+        'Poprzednie saldo': h.oldBalance,
+        'Nowe saldo': h.newBalance,
+        'Różnica': h.delta,
+        'Waluta': h.currency,
+        'Notatka': h.note
+      })));
+
+      const wsPlanner = XLSX.utils.json_to_sheet(state.plannerItems.map(p => ({
+        'Miesiąc': p.month,
+        'Typ': p.type,
+        'Nazwa': p.title,
+        'Wobec kogo / Dla kogo': p.person,
+        'Kwota całkowita': p.totalAmount,
+        'Wpłacono': p.paidAmount,
+        'Status': p.status,
+        'Notatka': p.note
+      })));
+
+      const wsWishlist = XLSX.utils.json_to_sheet(state.wishlist.map(w => ({
+        'Nazwa': w.title,
+        'Cena': w.price,
+        'Kategoria': w.category,
+        'Status': w.status,
+        'Link': w.url,
+        'Data dodania': w.addedDate,
+        'Notatka': w.note
+      })));
+
+      const wsInstallments = XLSX.utils.json_to_sheet(state.installments.map(i => ({
+        'Zakup': i.title,
+        'Sklep': i.vendor,
+        'Kwota łączna': i.totalAmount,
+        'Liczba rat 0%': i.count,
+        'Pierwsza rata': i.startMonth,
+        'Spłacone raty': (i.paidMonths || []).length
+      })));
+
+      const wsGoals = XLSX.utils.json_to_sheet(state.goals.map(g => ({
+        'Cel oszczędnościowy': g.title,
+        'Kwota docelowa': g.targetAmount,
+        'Odłożono': g.savedAmount,
+        'Notatka': g.note
+      })));
+
+      XLSX.utils.book_append_sheet(wb, wsAccounts, 'Konta');
+      XLSX.utils.book_append_sheet(wb, wsHistory, 'Historia_Sald');
+      XLSX.utils.book_append_sheet(wb, wsPlanner, 'Planer');
+      XLSX.utils.book_append_sheet(wb, wsWishlist, 'Wishlista');
+      XLSX.utils.book_append_sheet(wb, wsInstallments, 'Raty_0');
+      XLSX.utils.book_append_sheet(wb, wsGoals, 'Cele');
+      return wb;
+    }
+
+    function exportExcelWorkbook() {
+      if (typeof XLSX === 'undefined') {
+        showToast('Biblioteka Excela jeszcze się ładuje');
+        return;
+      }
+      const wb = buildExcelWorkbook();
+      XLSX.writeFile(wb, `BUDGET_Planer_${state.selectedMonth}.xlsx`);
+      showToast('Pobrano plik Excel (.xlsx)');
+    }
+
+    function exportCSV(section) {
+      let headers = [];
+      let rows = [];
+      if (section === 'history') {
+        headers = ['Data', 'Konto', 'Kategoria', 'Poprzednie saldo', 'Nowe saldo', 'Roznica', 'Waluta', 'Notatka'];
+        rows = state.history.map(h => [h.date, `"${h.accountName}"`, `"${h.category}"`, h.oldBalance, h.newBalance, h.delta, h.currency, `"${h.note || ''}"`]);
+      } else {
+        headers = ['Miesiac', 'Typ', 'Nazwa', 'Osoba', 'Kwota calkowita', 'Wplacono', 'Status', 'Notatka'];
+        rows = state.plannerItems.map(p => [p.month, `"${p.type}"`, `"${p.title}"`, `"${p.person || ''}"`, p.totalAmount, p.paidAmount, `"${p.status}"`, `"${p.note || ''}"`]);
+      }
+      const csv = '\uFEFF' + [headers.join(';'), ...rows.map(r => r.join(';'))].join('\n');
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `BUDGET_${section}_${state.selectedMonth}.csv`;
+      a.click();
+      showToast('Pobrano plik CSV');
+    }
+
+    function exportDataJSON() {
+      const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `BUDGET_Backup_${state.selectedMonth}.json`;
+      a.click();
+      showToast('Pobrano kopię zapasową JSON');
+    }
+
+    async function shareBackupNative(format) {
+      try {
+        let fileToShare;
+        if (format === 'xlsx' && typeof XLSX !== 'undefined') {
+          const wb = buildExcelWorkbook();
+          const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+          const blob = new Blob([wbout], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+          fileToShare = new File([blob], `BUDGET_Planer_${state.selectedMonth}.xlsx`, { type: blob.type });
+        } else {
+          const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
+          fileToShare = new File([blob], `BUDGET_Backup_${state.selectedMonth}.json`, { type: 'application/json' });
+        }
+
+        if (navigator.canShare && navigator.canShare({ files: [fileToShare] })) {
+          await navigator.share({
+            title: 'Kopia zapasowa BUDGET Planer Finansowy',
+            files: [fileToShare]
+          });
+        } else {
+          if (format === 'xlsx') exportExcelWorkbook();
+          else exportDataJSON();
+        }
+      } catch (e) {
+        if (e.name !== 'AbortError') {
+          if (format === 'xlsx') exportExcelWorkbook();
+          else exportDataJSON();
+        }
+      }
+    }
+
+    function importDataJSON(event) {
+      const file = event.target.files?.[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          const imported = JSON.parse(e.target.result);
+          if (imported && Array.isArray(imported.accounts)) {
+            state = { ...state, ...imported };
+            saveState();
+            populateSettingsForm();
+            renderAll();
+            showToast('Pomyślnie wczytano kopię zapasową JSON');
+          } else {
+            showToast('Nieprawidłowy plik kopii zapasowej');
+          }
+        } catch (err) {
+          showToast('Błąd odczytu pliku JSON');
+        }
+      };
+      reader.readAsText(file);
+      event.target.value = '';
+    }
+
+    function askRestoreDemo() {
+      openConfirmModal('Wczytać dane przykładowe?', 'Obecne wpisy zostaną zastąpione przykładowym zestawem danych budżetowych.', () => {
+        loadDemoData();
+        populateSettingsForm();
+        renderAll();
+        showToast('Przywrócono dane przykładowe');
+      });
+    }
+
+    function askClearDatabase() {
+      openConfirmModal('Wyczyścić bazę do zera?', 'Wszystkie konta, historia różnic, planer, raty i wishlista zostaną usunięte.', () => {
+        state.accounts = [];
+        state.history = [];
+        state.plannerItems = [];
+        state.wishlist = [];
+        state.installments = [];
+        state.goals = [];
+        saveState();
+        renderAll();
+        showToast('Wyczyszczono bazę danych');
+      });
+    }
+
+    function downloadServiceWorkerFile() {
+      const swCode = `const CACHE_NAME = 'budget-planer-v2-cache';
+const ASSETS = [
+  './',
+  './index.html',
+  'https://cdn.tailwindcss.com',
+  'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js'
+];
+self.addEventListener('install', (e) => {
+  e.waitUntil(caches.open(CACHE_NAME).then(c => c.addAll(ASSETS)));
+  self.skipWaiting();
+});
+self.addEventListener('activate', (e) => {
+  e.waitUntil(self.clients.claim());
+});
+self.addEventListener('fetch', (e) => {
+  e.respondWith(caches.match(e.request).then(cached => cached || fetch(e.request)));
+});`;
+      const blob = new Blob([swCode], { type: 'application/javascript' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'sw.js';
+      a.click();
+      showToast('Pobrano plik sw.js');
+    }
+  </script>
+</body>
+</html>
